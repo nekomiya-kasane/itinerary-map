@@ -9,52 +9,115 @@
   <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    :root { --ink:#3a3028; --muted:#74675c; --line:#cfc2ad; --paper:#f3ead8; --card:#fffaf0; --blue:#386f72; --teal:#487c5b; --orange:#c76b3b; --purple:#765b83; --yellow:#c59b45; }
+    :root {
+      --ink:#3a3028; --muted:#74675c; --line:#cfc2ad; --paper:#f3ead8; --card:#fffaf0;
+      --blue:#386f72; --teal:#487c5b; --orange:#c76b3b; --purple:#765b83; --yellow:#c59b45;
+      --focus:rgba(40,107,112,.38); --shadow:rgba(81,66,55,.16);
+      --z-map:1; --z-map-ui:400; --z-popup:700; --z-sticky:900;
+    }
     * { box-sizing:border-box; }
-    body { margin:0; color:var(--ink); background-color:var(--paper); background-image:repeating-linear-gradient(0deg,rgba(100,74,42,.035) 0,rgba(100,74,42,.035) 1px,transparent 1px,transparent 4px); font-family:"Noto Serif SC","Songti SC",serif; }
-    .app { display:grid; grid-template-columns:minmax(300px,390px) 1fr; height:100vh; min-height:640px; }
-    aside { overflow:auto; border-right:2px dashed var(--line); background:rgba(255,250,240,.88); padding:22px 20px; }
-    h1 { margin:0 0 6px; font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:30px; font-weight:400; line-height:1.15; letter-spacing:0; color:#514237; }
-    .lede { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.7; }
-    .days { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0 16px; }
-    .day { appearance:none; border:1px solid var(--line); background:#f9f0df; color:var(--ink); border-radius:7px 5px 8px 4px; padding:8px 11px; font-size:13px; font-family:inherit; cursor:pointer; box-shadow:2px 2px 0 rgba(91,68,45,.12); min-height:38px; touch-action:manipulation; }
-    .day:focus-visible, .map-tool:focus-visible { outline:3px solid rgba(40,107,112,.32); outline-offset:2px; }
+    html { scroll-padding-top:72px; }
+    body {
+      margin:0; color:var(--ink); background-color:var(--paper);
+      background-image:repeating-linear-gradient(0deg,rgba(100,74,42,.035) 0,rgba(100,74,42,.035) 1px,
+        transparent 1px,transparent 4px);
+      font-family:"Noto Serif SC","Songti SC",serif;
+    }
+    button, a { -webkit-tap-highlight-color:transparent; }
+    .app { display:grid; grid-template-columns:minmax(320px,400px) minmax(0,1fr); height:100dvh; min-height:640px; }
+    .itinerary-panel {
+      overflow:auto; border-right:2px dashed var(--line); background:rgba(255,250,240,.9); padding:22px 20px;
+      scrollbar-color:var(--line) transparent;
+    }
+    .trip-header { margin-bottom:12px; }
+    .eyebrow { margin:0 0 4px; color:var(--blue); font-size:12px; font-weight:700; letter-spacing:.12em; }
+    h1 {
+      margin:0 0 7px; font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:32px; font-weight:400;
+      line-height:1.15; color:#514237;
+    }
+    .lede { color:var(--muted); font-size:13px; margin:0; line-height:1.7; }
+    .days { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0 14px; }
+    .day {
+      appearance:none; border:1px solid var(--line); background:#f9f0df; color:var(--ink);
+      border-radius:7px 5px 8px 4px; padding:8px 11px; min-width:44px; min-height:44px; font-size:13px;
+      font-family:inherit; cursor:pointer; box-shadow:2px 2px 0 rgba(91,68,45,.12); touch-action:manipulation;
+    }
+    .day:focus-visible, .map-tool:focus-visible, .stop-toggle:focus-visible, .view-selected:focus-visible {
+      outline:3px solid var(--focus); outline-offset:2px;
+    }
     .day.active { border-color:var(--blue); background:#dcebe5; color:#285b5c; font-weight:700; transform:rotate(-1deg); }
-    .summary { font-size:12px; color:var(--muted); padding:10px 0 13px; border-bottom:1px dashed var(--line); line-height:1.6; }
-    .stop { border-bottom:1px dashed var(--line); padding:14px 0; cursor:pointer; transition:background .16s ease,transform .16s ease; touch-action:manipulation; }
-    .stop:hover, .stop.selected { background:#fff4dc; margin:0 -10px; padding-left:10px; padding-right:10px; transform:rotate(-.25deg); }
-    .stop-head { display:flex; gap:8px; align-items:flex-start; }
-    .num { color:var(--blue); font-variant-numeric:tabular-nums; font-weight:700; width:22px; }
-    .stop h2 { flex:1; min-width:0; font-size:15px; margin:0; line-height:1.35; }
-    .stop p { margin:5px 0 0 30px; color:var(--muted); font-size:12px; line-height:1.5; }
-    .tag { display:inline-block; margin:7px 0 0 30px; padding:2px 7px; border-radius:5px 3px 6px 4px; background:#e7eee5; color:#426149; font-size:11px; }
+    .summary { padding:10px 0 14px; border-bottom:1px dashed var(--line); }
+    .summary-main { display:block; color:var(--ink); font-size:14px; font-weight:700; line-height:1.5; }
+    .summary-note { display:block; margin-top:3px; color:var(--muted); font-size:12px; line-height:1.65; }
+    #stops { position:relative; }
+    .stop { position:relative; border-bottom:1px dashed var(--line); transition:background .16s ease; }
+    .stop::before {
+      content:""; position:absolute; left:14px; top:48px; bottom:-1px; width:1px;
+      background:repeating-linear-gradient(to bottom,var(--line) 0 5px,transparent 5px 9px);
+    }
+    .stop:last-child::before { display:none; }
+    .stop.is-selected { background:rgba(255,244,220,.82); box-shadow:inset 4px 0 0 var(--blue); }
+    .stop-toggle {
+      display:block; width:100%; appearance:none; border:0; background:transparent; color:inherit; padding:15px 8px 14px;
+      text-align:left; font:inherit; cursor:pointer; touch-action:manipulation;
+    }
+    .stop-head { display:grid; grid-template-columns:28px 26px minmax(0,1fr) 24px; gap:7px; align-items:center; }
+    .num { color:var(--blue); font-size:13px; font-variant-numeric:tabular-nums; font-weight:700; }
+    .stop h2 { min-width:0; font-size:15px; margin:0; line-height:1.45; }
+    .chevron { width:20px; height:20px; color:var(--muted); transition:transform .18s ease; }
+    .stop-toggle[aria-expanded="true"] .chevron { transform:rotate(180deg); }
+    .stop-meta { display:block; margin:6px 24px 0 61px; color:var(--muted); font-size:12px; line-height:1.55; }
+    .tag {
+      display:inline-block; margin:8px 0 0 61px; padding:3px 8px; border-radius:5px 3px 6px 4px;
+      background:#e7eee5; color:#426149; font-size:11px; line-height:1.5;
+    }
     .tag.approx { background:#f7dfc9; color:#964c2d; }
-    .detail { display:none; border-top:1px dashed var(--line); margin-top:10px; padding-top:11px; font-size:12px; line-height:1.7; }
-    .stop.selected .detail { display:block; }
-    .detail strong { color:var(--ink); }
-    .detail p { margin:0 0 7px; }
-    .detail ul { margin:4px 0 8px 17px; padding:0; }
-    .detail a { color:#286b70; text-decoration:none; }
-    .detail a:hover { text-decoration:underline; }
-    #map { height:100%; min-height:640px; }
-    .leaflet-popup-content { margin:13px 15px; min-width:250px; max-width:320px; font-family:"Noto Serif SC","Songti SC",serif; }
-    .leaflet-popup-content-wrapper { background:#fffaf0; border:1px solid #b9a98f; border-radius:7px 4px 8px 5px; box-shadow:3px 3px 0 rgba(81,66,55,.16); }
+    .stop-detail {
+      margin:0 12px 15px 61px; border-top:1px dashed var(--line); padding-top:12px; color:var(--muted);
+      font-size:13px; line-height:1.75;
+    }
+    .stop-detail[hidden] { display:none; }
+    .stop-detail strong { color:var(--ink); }
+    .stop-detail p { margin:0 0 9px; }
+    .stop-detail ul { margin:4px 0 10px 19px; padding:0; }
+    .source-links { display:flex; flex-wrap:wrap; gap:8px; }
+    .stop-detail a { display:inline-flex; align-items:center; min-height:32px; color:#286b70; text-decoration:underline; text-underline-offset:3px; }
+    .map-shell { position:relative; min-width:0; height:100%; background:#d8dfd2; }
+    #map { z-index:var(--z-map); height:100%; min-height:640px; }
+    .map-selection { display:none; }
+    .leaflet-popup { z-index:var(--z-popup); }
+    .leaflet-popup-content {
+      margin:13px 15px; min-width:250px; max-width:320px; font-family:"Noto Serif SC","Songti SC",serif;
+    }
+    .leaflet-popup-content-wrapper {
+      background:#fffaf0; border:1px solid #b9a98f; border-radius:7px 4px 8px 5px;
+      box-shadow:3px 3px 0 var(--shadow);
+    }
     .leaflet-popup-tip { background:#fffaf0; }
-    .popup-title { font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:22px; margin-bottom:4px; color:#514237; }
-    .popup-meta { color:#66594e; font-size:12px; line-height:1.65; }
-    .popup-intro { font-size:12px; line-height:1.65; margin-top:8px; }
-    .popup-highlights { margin:5px 0 7px 17px; padding:0; color:#66594e; font-size:12px; line-height:1.55; }
-    .popup-tip { border-top:1px dashed #cfc2ad; margin-top:7px; padding-top:6px; color:#805a3f; font-size:11px; line-height:1.55; }
-    .popup-links { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
-    .popup-link { color:#286b70; font-size:11px; text-decoration:none; }
-    .popup-link:hover { text-decoration:underline; }
-    .legend { position:absolute; right:14px; bottom:18px; z-index:500; background:rgba(255,250,240,.94); border:1px dashed #b9a98f; border-radius:7px 4px 8px 5px; padding:9px 11px; font-size:11px; line-height:1.9; box-shadow:3px 3px 0 rgba(81,66,55,.14); }
+    .popup-title {
+      padding-right:28px; font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:22px; margin-bottom:5px; color:#514237;
+    }
+    .popup-meta { color:#66594e; font-size:13px; line-height:1.65; }
+    .popup-intro { font-size:13px; line-height:1.7; margin-top:9px; }
+    .popup-highlights { margin:6px 0 8px 18px; padding:0; color:#66594e; font-size:13px; line-height:1.6; }
+    .popup-tip { border-top:1px dashed #cfc2ad; margin-top:8px; padding-top:7px; color:#805a3f; font-size:12px; line-height:1.65; }
+    .popup-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
+    .popup-link { display:inline-flex; align-items:center; min-height:32px; color:#286b70; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+    .legend {
+      position:absolute; right:14px; bottom:18px; z-index:var(--z-map-ui); background:rgba(255,250,240,.95);
+      border:1px dashed #b9a98f; border-radius:7px 4px 8px 5px; padding:10px 12px; font-size:12px;
+      line-height:1.9; box-shadow:3px 3px 0 rgba(81,66,55,.14);
+    }
     .legend-grid { display:grid; grid-template-columns:repeat(2,minmax(110px,1fr)); gap:2px 10px; }
     .legend.is-hidden { display:none; }
     .legend-item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
-    .legend-symbol { display:inline-grid; place-items:center; width:20px; height:20px; border:2px solid currentColor; border-radius:48% 52% 45% 55%; font-size:12px; line-height:1; font-weight:700; }
-    .source-note { margin-top:16px; color:var(--muted); font-size:11px; line-height:1.65; }
-    .source-note a { color:#286b70; }
+    .legend-symbol {
+      display:inline-grid; place-items:center; width:20px; height:20px; border:2px solid currentColor;
+      border-radius:48% 52% 45% 55%; font-size:12px; line-height:1; font-weight:700;
+    }
+    .legend-note { color:var(--muted); margin-top:3px; }
+    .source-note { margin-top:16px; color:var(--muted); font-size:12px; line-height:1.7; }
+    .source-note a { color:#286b70; text-underline-offset:3px; }
     .hand-marker-wrap { background:transparent; border:0; }
     .hand-marker { display:grid; place-items:center; width:30px; height:30px; border:3px solid currentColor; border-radius:48% 52% 43% 57%; color:#514237; background:#fffaf0; box-shadow:2px 2px 0 rgba(81,66,55,.22); font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:17px; transform:rotate(-5deg); }
     .hand-marker.transport { color:#286b70; background:#d9ebe3; }
@@ -65,54 +128,122 @@
     .hand-marker.food { color:#ae5c48; background:#f2d8cb; }
     .hand-marker.village { color:#7b6650; background:#e8dcc7; }
     .hand-marker.shopping { color:#3f7390; background:#d8e8ef; }
-    .map-tools { position:absolute; top:14px; right:14px; z-index:600; display:flex; flex-direction:column; gap:7px; }
-    .map-tool { display:grid; place-items:center; width:38px; height:38px; border:1px solid #b9a98f; border-radius:48% 52% 45% 55%; background:rgba(255,250,240,.95); color:#514237; box-shadow:2px 2px 0 rgba(81,66,55,.18); font-family:inherit; font-size:20px; cursor:pointer; touch-action:manipulation; }
-    .map-tool:hover { background:#fff4dc; transform:rotate(-3deg); }
+    .map-tools { position:absolute; top:14px; right:14px; z-index:var(--z-map-ui); display:flex; flex-direction:column; gap:8px; }
+    .map-tool {
+      display:grid; place-items:center; width:44px; height:44px; border:1px solid #b9a98f;
+      border-radius:48% 52% 45% 55%; background:rgba(255,250,240,.96); color:#514237;
+      box-shadow:2px 2px 0 rgba(81,66,55,.18); font-family:inherit; cursor:pointer; touch-action:manipulation;
+    }
+    .map-tool svg { width:21px; height:21px; stroke:currentColor; }
+    @media (hover:hover) and (pointer:fine) {
+      .day:hover, .map-tool:hover, .stop-toggle:hover { background:#fff4dc; }
+      .map-tool:hover { transform:rotate(-3deg); }
+      .stop-detail a:hover, .popup-link:hover { color:#174f54; }
+    }
     @media (max-width:780px) {
       body { min-height:100svh; overflow-x:hidden; }
       .app { display:flex; flex-direction:column; min-height:100svh; height:auto; }
-      #map { order:0; height:52svh; min-height:350px; max-height:620px; flex:none; }
-      aside { order:1; border-right:0; border-top:2px dashed var(--line); padding:17px 14px calc(28px + env(safe-area-inset-bottom)); overflow:visible; }
+      .itinerary-panel { display:contents; }
+      .trip-header { order:0; margin:0; padding:16px 16px 10px; background:rgba(255,250,240,.92); }
+      .eyebrow { font-size:11px; }
       h1 { font-size:28px; }
-      .lede { font-size:12px; line-height:1.6; }
-      .days { position:sticky; top:0; z-index:20; flex-wrap:nowrap; overflow-x:auto; margin:10px -14px 12px; padding:8px 14px 10px; background:rgba(255,250,240,.96); border-bottom:1px dashed var(--line); scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+      .lede { font-size:13px; line-height:1.6; }
+      .days {
+        position:sticky; top:0; order:1; z-index:var(--z-sticky); flex-wrap:nowrap; overflow-x:auto;
+        margin:0; padding:8px 14px 10px; background:rgba(255,250,240,.97); border-top:1px dashed var(--line);
+        border-bottom:1px dashed var(--line); box-shadow:0 3px 10px rgba(81,66,55,.08); scrollbar-width:none;
+        scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;
+      }
       .days::-webkit-scrollbar { display:none; }
-      .day { flex:0 0 auto; min-width:48px; min-height:42px; padding:8px 13px; }
-      .stop { padding:16px 0; }
-      .stop:hover, .stop.selected { margin:0 -7px; padding-left:7px; padding-right:7px; }
-      .stop h2 { font-size:16px; }
-      .stop p { margin-left:30px; font-size:12px; }
-      .detail { font-size:12px; line-height:1.75; }
-      .legend { display:none; top:62px; right:10px; bottom:auto; max-width:calc(100% - 20px); }
+      .day { flex:0 0 auto; min-width:52px; padding:8px 14px; font-size:14px; scroll-snap-align:start; }
+      .map-shell { order:2; height:auto; border-bottom:2px dashed var(--line); }
+      #map { height:clamp(290px,44svh,430px); min-height:290px; }
+      .map-selection {
+        display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:54px; padding:8px 14px;
+        background:#fff7e8; border-top:1px dashed var(--line); color:var(--muted); font-size:13px;
+      }
+      .map-selection[hidden] { display:none; }
+      .map-selection strong { display:block; color:var(--ink); font-size:14px; line-height:1.4; }
+      .view-selected {
+        flex:0 0 auto; min-height:40px; appearance:none; border:1px solid var(--blue); border-radius:7px 5px 8px 4px;
+        padding:7px 12px; background:#dcebe5; color:#285b5c; font-family:inherit; font-size:13px; font-weight:700;
+        line-height:1.2; cursor:pointer;
+      }
+      .summary { order:3; padding:14px 16px; background:rgba(255,250,240,.9); }
+      .summary-main { font-size:15px; }
+      .summary-note { font-size:13px; }
+      #stops { order:4; padding:0 12px; background:rgba(255,250,240,.9); }
+      .stop-toggle { padding:17px 6px 16px; }
+      .stop-head { grid-template-columns:29px 28px minmax(0,1fr) 28px; gap:8px; }
+      .stop h2 { font-size:16px; line-height:1.45; }
+      .stop-meta { margin-left:65px; margin-right:28px; font-size:14px; line-height:1.55; }
+      .tag { margin-left:65px; font-size:12px; }
+      .stop-detail { margin:0 8px 18px 65px; font-size:15px; line-height:1.75; }
+      .stop-detail a { min-height:44px; }
+      .source-note {
+        order:5; margin:0; padding:18px 16px calc(26px + env(safe-area-inset-bottom));
+        background:rgba(255,250,240,.9); font-size:13px;
+      }
+      .legend { display:none; top:62px; right:10px; bottom:auto; max-width:calc(100% - 20px); font-size:12px; }
       .legend.is-open { display:block; }
       .map-tools { top:14px; right:10px; }
-      .map-tool { width:42px; height:42px; font-size:21px; }
-      .leaflet-popup-content { width:calc(100vw - 54px) !important; min-width:0; max-width:calc(100vw - 54px); margin:11px 12px; }
+      .leaflet-popup-content {
+        width:calc(100vw - 62px) !important; min-width:0; max-width:calc(100vw - 62px); margin:12px 13px;
+      }
       .leaflet-popup-content-wrapper { max-width:calc(100vw - 30px); }
       .popup-title { font-size:20px; }
-      .popup-intro, .popup-highlights { font-size:12px; }
+      .popup-meta, .popup-intro, .popup-highlights { font-size:13px; }
+      .popup-link { min-height:40px; font-size:13px; }
+      .popup-highlights, .popup-tip { display:none; }
+      .leaflet-popup-close-button {
+        display:grid; place-items:center; width:44px !important; height:44px !important; padding:0 !important;
+        font-size:24px !important; line-height:1 !important;
+      }
+      .map-tools { transition:opacity .15s ease,transform .15s ease; }
+      .map-shell.has-popup .map-tools { opacity:0; pointer-events:none; transform:translateY(-4px); }
+    }
+    @media (max-width:380px) {
+      .trip-header { padding-left:14px; padding-right:14px; }
+      h1 { font-size:26px; }
+      #map { height:42svh; min-height:270px; }
+      .stop-detail { margin-left:16px; }
     }
     @media (prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto !important; transition-duration:.01ms !important; animation-duration:.01ms !important; } }
   </style>
 </head>
 <body>
 <main class="app">
-  <aside>
-    <h1>华东六日行程地图</h1>
-    <p class="lede">上海 → 杭州 → 宁波 → 枸杞岛 → 泗礁岛 → 上海。点击日期筛选路线，点击地点查看时间、交通与出处。</p>
-    <div class="days" id="days" aria-label="按日期筛选"></div>
-    <div class="summary" id="summary" aria-live="polite"></div>
+  <aside class="itinerary-panel">
+    <header class="trip-header">
+      <p class="eyebrow">6 日 · 5 地 · 35 站</p>
+      <h1>华东六日行程地图</h1>
+      <p class="lede">上海 → 杭州 → 宁波 → 枸杞岛 → 泗礁岛 → 上海。按日期筛选路线，展开地点查看介绍与出处。</p>
+    </header>
+    <nav class="days" id="days" aria-label="按日期筛选"></nav>
+    <div class="summary" id="summary" aria-live="polite">
+      <strong class="summary-main" id="summary-main"></strong>
+      <span class="summary-note">路线为行程顺序示意；跨城、跨海线段不代表实际道路或航线。</span>
+    </div>
     <section id="stops" aria-label="行程地点"></section>
     <div class="source-note">坐标底图：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>。海岛沙滩与观景点以景区/村落附近约略坐标表示；出发前请以官方票务和当日船班为准。</div>
   </aside>
-  <div id="map" aria-label="行程交互地图">
-    <div class="map-tools" aria-label="地图操作">
-      <button class="map-tool" id="fit-route" type="button" aria-label="重新查看当前路线" title="重新查看当前路线">⌖</button>
-      <button class="map-tool" id="toggle-legend" type="button" aria-label="显示地点图例" title="显示地点图例">≡</button>
+  <section class="map-shell" aria-label="地图与当前选择">
+    <div id="map" role="region" aria-label="行程交互地图"></div>
+    <div class="map-tools" role="group" aria-label="地图操作">
+      <button class="map-tool" id="fit-route" type="button" aria-label="重新查看当前路线" title="重新查看当前路线">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path><circle cx="12" cy="12" r="2"></circle></svg>
+      </button>
+      <button class="map-tool" id="toggle-legend" type="button" aria-label="显示地点图例" aria-expanded="false" aria-controls="map-legend" title="显示地点图例">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
+      </button>
     </div>
-  </div>
+    <div class="map-selection" id="map-selection" aria-live="polite" hidden>
+      <span>地图已选择<strong id="selected-name"></strong></span>
+      <button class="view-selected" id="view-selected" type="button">查看详情</button>
+    </div>
+    <div class="legend" id="map-legend" role="note" aria-label="地点类型图例"><div class="legend-grid"><span class="legend-item"><i class="legend-symbol" style="color:#286b70">↔</i>交通</span><span class="legend-item"><i class="legend-symbol" style="color:#765b83">▣</i>文化</span><span class="legend-item"><i class="legend-symbol" style="color:#b36a37">≈</i>海滩</span><span class="legend-item"><i class="legend-symbol" style="color:#6b7e4d">⌁</i>路线</span><span class="legend-item"><i class="legend-symbol" style="color:#ad7d25">✦</i>观景</span><span class="legend-item"><i class="legend-symbol" style="color:#ae5c48">☕</i>餐饮</span><span class="legend-item"><i class="legend-symbol" style="color:#7b6650">⌂</i>村落</span><span class="legend-item"><i class="legend-symbol" style="color:#3f7390">▤</i>购物</span></div><div class="legend-note">虚线=跨城/跨海示意 · 橙色标签=约略坐标</div></div>
+  </section>
 </main>
-<div class="legend" aria-label="地点类型图例"><div class="legend-grid"><span class="legend-item"><i class="legend-symbol" style="color:#286b70">↔</i>交通</span><span class="legend-item"><i class="legend-symbol" style="color:#765b83">▣</i>文化</span><span class="legend-item"><i class="legend-symbol" style="color:#b36a37">≈</i>海滩</span><span class="legend-item"><i class="legend-symbol" style="color:#6b7e4d">⌁</i>路线</span><span class="legend-item"><i class="legend-symbol" style="color:#ad7d25">✦</i>观景</span><span class="legend-item"><i class="legend-symbol" style="color:#ae5c48">☕</i>餐饮</span><span class="legend-item"><i class="legend-symbol" style="color:#7b6650">⌂</i>村落</span><span class="legend-item"><i class="legend-symbol" style="color:#3f7390">▤</i>购物</span></div><div style="color:#74675c;margin-top:3px">虚线=跨城/跨海示意 · 橙色标签=约略坐标</div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const stops = [
@@ -214,10 +345,6 @@ function linksFor(s){
   if(!links.some(x=>x.url==='https://www.shengsi.gov.cn/') && ['枸杞岛','泗礁岛','岱山'].includes(s.city)) links.push({url:'https://www.shengsi.gov.cn/',label:'嵊泗县政府'});
   return links;
 }
-const map = L.map('map', { preferCanvas:true }).setView([30.55,121.35], 8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-const markerLayer = L.layerGroup().addTo(map); const lineLayer = L.layerGroup().addTo(map); const markerRefs = new Map();
-let currentDay = 0;
 const dayRoute = {
   1:[[31.197,121.321],[30.2901,120.2120]],
   2:stops.filter(s=>s.day===2).map(s=>[s.lat,s.lon]),
@@ -226,35 +353,238 @@ const dayRoute = {
   5:[[30.744,122.789],[30.735,122.780],[30.748,122.774],[30.739,122.792],[30.7355,122.479],[30.720,122.470]],
   6:[[30.667,122.531],[30.690,122.500],[30.742,122.480],[30.733,122.451],[31.207,121.494]]
 };
-function popup(s){
-  const info=infoFor(s); const links=linksFor(s); const style=styleForStop(s);
-  return `<div class="popup-title"><span class="hand-marker ${style.className}" style="display:inline-grid;width:25px;height:25px;font-size:14px;vertical-align:middle;margin-right:5px">${style.symbol}</span>${escapeHtml(s.name)}</div><div class="popup-meta">D${s.day} · ${escapeHtml(s.city)} · ${escapeHtml(s.kind)}<br>${escapeHtml(s.time)}<br>${escapeHtml(s.note)}${s.approx?'（约略坐标）':''}</div><div class="popup-intro">${escapeHtml(info.intro)}</div>${info.highlights.length?`<ul class="popup-highlights">${info.highlights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}<div class="popup-tip"><strong>实用提示：</strong>${escapeHtml(info.tips)}</div><div class="popup-links">${links.map(x=>`<a class="popup-link" href="${x.url}" target="_blank" rel="noopener">${escapeHtml(x.label)} ↗</a>`).join('')}</div>`;
+const map = L.map('map', {preferCanvas:true}).setView([30.55,121.35], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19,
+  attribution:'&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const markerLayer = L.layerGroup().addTo(map);
+const lineLayer = L.layerGroup().addTo(map);
+const markerRefs = new Map();
+const stopByName = new Map(stops.map(stop=>[stop.name,stop]));
+const ui = {
+  days:document.getElementById('days'),
+  stops:document.getElementById('stops'),
+  summary:document.getElementById('summary-main'),
+  mapSelection:document.getElementById('map-selection'),
+  selectedName:document.getElementById('selected-name'),
+  viewSelected:document.getElementById('view-selected'),
+  legend:document.getElementById('map-legend'),
+  legendToggle:document.getElementById('toggle-legend')
+};
+const state = {day:0, selectedStop:null};
+
+function renderSourceLinks(s, className=''){
+  return linksFor(s).map(link=>
+    `<a class="${className}" href="${escapeHtml(link.url)}" target="_blank" rel="noopener">`+
+    `${escapeHtml(link.label)} ↗</a>`
+  ).join('');
 }
-function draw(day){
-  currentDay = day;
-  markerLayer.clearLayers(); lineLayer.clearLayers(); markerRefs.clear();
-  const visible = day === 0 ? stops : stops.filter(s=>s.day===day);
-  visible.forEach((s,i)=>{ const style=styleForStop(s); const icon=L.divIcon({className:'hand-marker-wrap',html:`<span class="hand-marker ${style.className}">${style.symbol}</span>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-14]}); const m=L.marker([s.lat,s.lon],{icon}); m.bindPopup(popup(s)); m.on('click',()=>selectStop(s)); m.addTo(markerLayer); markerRefs.set(s.name,m); });
-  const routes = day === 0 ? Object.values(dayRoute) : [dayRoute[day]];
-  routes.filter(Boolean).forEach((pts,idx)=>L.polyline(pts,{color:day===0?'#64748b':(colors[visible[0]?.city]||'#1f6feb'),weight:3,opacity:.72,dashArray:day===0?'6 7':null}).addTo(lineLayer));
-  if(visible.length){ const routePoints=routes.filter(Boolean).flat(); const bounds=L.latLngBounds(visible.map(s=>[s.lat,s.lon]).concat(routePoints)); map.fitBounds(bounds.pad(.18),{maxZoom:day===0?8:13}); }
-  renderList(day, visible);
+
+function renderHighlights(items, className=''){
+  if(!items.length) return '';
+  return `<ul class="${className}">${items.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
 }
-function fitCurrentView(){
-  const visible=currentDay===0 ? stops : stops.filter(s=>s.day===currentDay);
+
+function renderPopup(s){
+  const info=infoFor(s);
+  const style=styleForStop(s);
+  const approximate=s.approx?'（约略坐标）':'';
+  return `<div class="popup-title"><span class="hand-marker ${style.className}" `+
+    `style="display:inline-grid;width:25px;height:25px;font-size:14px;vertical-align:middle;margin-right:5px">`+
+    `${style.symbol}</span>${escapeHtml(s.name)}</div>`+
+    `<div class="popup-meta">D${s.day} · ${escapeHtml(s.city)} · ${escapeHtml(s.kind)}<br>`+
+    `${escapeHtml(s.time)}<br>${escapeHtml(s.note)}${approximate}</div>`+
+    `<div class="popup-intro">${escapeHtml(info.intro)}</div>`+
+    `${renderHighlights(info.highlights,'popup-highlights')}`+
+    `<div class="popup-tip"><strong>实用提示：</strong>${escapeHtml(info.tips)}</div>`+
+    `<div class="popup-links">${renderSourceLinks(s,'popup-link')}</div>`;
+}
+
+function renderStopCard(s,index){
+  const info=infoFor(s);
+  const style=styleForStop(s);
+  const panelId=`stop-detail-${state.day}-${index}`;
+  const marker=`<span class="hand-marker ${style.className}" `+
+    `style="display:inline-grid;width:24px;height:24px;font-size:12px">${style.symbol}</span>`;
+  const chevron='<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
+  return `<article class="stop" data-name="${escapeHtml(s.name)}">`+
+    `<button class="stop-toggle" type="button" aria-expanded="false" aria-controls="${panelId}">`+
+    `<span class="stop-head"><span class="num">${String(index+1).padStart(2,'0')}</span>${marker}`+
+    `<h2>${escapeHtml(s.name)}</h2>${chevron}</span>`+
+    `<span class="stop-meta">${escapeHtml(s.time)} · ${escapeHtml(s.kind)}</span>`+
+    `<span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span></button>`+
+    `<div class="stop-detail" id="${panelId}" hidden>`+
+    `<p><strong>行程说明：</strong>${escapeHtml(s.note)}</p>`+
+    `<p><strong>外部介绍：</strong>${escapeHtml(info.intro)}</p>`+
+    `${info.highlights.length?`<p><strong>看点：</strong></p>${renderHighlights(info.highlights)}`:''}`+
+    `<p><strong>实用提示：</strong>${escapeHtml(info.tips)}</p>`+
+    `<p><strong>出处：</strong></p><div class="source-links">${renderSourceLinks(s)}</div></div></article>`;
+}
+
+function visibleStops(){
+  return state.day===0?stops:stops.filter(stop=>stop.day===state.day);
+}
+
+function routeSegments(){
+  return state.day===0?Object.values(dayRoute):[dayRoute[state.day]];
+}
+
+function fitCurrentView(animate=true){
+  const visible=visibleStops();
   if(!visible.length) return;
-  const routes=currentDay===0 ? Object.values(dayRoute) : [dayRoute[currentDay]];
-  const routePoints=routes.filter(Boolean).flat();
-  map.fitBounds(L.latLngBounds(visible.map(s=>[s.lat,s.lon]).concat(routePoints)).pad(.18),{maxZoom:currentDay===0?8:13, animate:true});
+  const routePoints=routeSegments().filter(Boolean).flat();
+  const points=visible.map(stop=>[stop.lat,stop.lon]).concat(routePoints);
+  map.fitBounds(L.latLngBounds(points).pad(.18), {maxZoom:state.day===0?8:13,animate});
 }
-function renderList(day, visible){ const wrap=document.getElementById('stops'); wrap.innerHTML=''; visible.forEach((s,i)=>{ const info=infoFor(s); const style=styleForStop(s); const el=document.createElement('article'); el.className='stop'; el.dataset.name=s.name; el.setAttribute('tabindex','0'); el.setAttribute('role','button'); el.setAttribute('aria-expanded','false'); el.innerHTML=`<div class="stop-head"><span class="num">${String(i+1).padStart(2,'0')}</span><span class="hand-marker ${style.className}" style="display:inline-grid;width:22px;height:22px;font-size:12px">${style.symbol}</span><h2>${escapeHtml(s.name)}</h2></div><p>${escapeHtml(s.time)} · ${escapeHtml(s.kind)}</p><span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span><div class="detail"><p><strong>行程说明：</strong>${escapeHtml(s.note)}</p><p><strong>外部介绍：</strong>${escapeHtml(info.intro)}</p>${info.highlights.length?`<p><strong>看点：</strong></p><ul>${info.highlights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}<p><strong>实用提示：</strong>${escapeHtml(info.tips)}</p><p><strong>出处：</strong>${linksFor(s).map(x=>`<a href="${x.url}" target="_blank" rel="noopener">${escapeHtml(x.label)} ↗</a>`).join(' · ')}</p></div>`; const activate=()=>{ const wasSelected=el.classList.contains('selected'); selectStop(s); if(wasSelected){ el.classList.remove('selected'); el.setAttribute('aria-expanded','false'); } else { el.setAttribute('aria-expanded','true'); } }; el.onclick=activate; el.onkeydown=e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activate(); } }; el.querySelectorAll('a').forEach(a=>a.addEventListener('click',e=>e.stopPropagation())); wrap.appendChild(el); }); document.getElementById('summary').textContent=`${day===0?'全程':`D${day}`} · ${visible.length} 个地点。路线线段为行程示意，跨城/跨海段不代表实际道路或航线。跨城/跨海虚线仅表达行程顺序，不代表实际道路或航线。`;
+
+function renderList(){
+  const visible=visibleStops();
+  ui.stops.innerHTML=visible.map(renderStopCard).join('');
+  const cities=[...new Set(visible.map(stop=>stop.city))].join('、');
+  ui.summary.textContent=state.day===0?`全程 · ${visible.length} 个地点 · 6 天`:`D${state.day} · ${visible.length} 个地点 · ${cities}`;
 }
-function selectStop(s){ document.querySelectorAll('.stop').forEach(x=>{ const selected=x.dataset.name===s.name; x.classList.toggle('selected',selected); x.setAttribute('aria-expanded',String(selected)); }); const m=markerRefs.get(s.name); if(m){ map.setView([s.lat,s.lon],Math.max(map.getZoom(),13),{animate:true}); m.openPopup(); if(window.matchMedia('(max-width:780px)').matches) document.getElementById('map').scrollIntoView({behavior:'smooth',block:'start'}); } }
-const days=document.getElementById('days'); [{n:0,t:'全程'},...Array.from({length:6},(_,i)=>({n:i+1,t:`D${i+1}`}))].forEach(d=>{ const b=document.createElement('button'); b.className='day'+(d.n===0?' active':''); b.textContent=d.t; b.type='button'; b.onclick=()=>{document.querySelectorAll('.day').forEach(x=>x.classList.remove('active')); b.classList.add('active'); draw(d.n);}; days.appendChild(b); });
-document.getElementById('fit-route').addEventListener('click',fitCurrentView);
-const legend=document.querySelector('.legend'); const legendToggle=document.getElementById('toggle-legend');
-legendToggle.addEventListener('click',()=>{ const mobile=window.matchMedia('(max-width:780px)').matches; const cls=mobile?'is-open':'is-hidden'; legend.classList.toggle(cls); const expanded=legend.classList.contains(cls); legendToggle.setAttribute('aria-expanded',String(expanded)); legendToggle.setAttribute('aria-label',expanded?'隐藏地点图例':'显示地点图例'); legendToggle.title=expanded?'隐藏地点图例':'显示地点图例'; });
-draw(0);
+
+function setExpanded(article,expanded){
+  const button=article?.querySelector('.stop-toggle');
+  const detail=article?.querySelector('.stop-detail');
+  if(!button || !detail) return;
+  button.setAttribute('aria-expanded',String(expanded));
+  detail.hidden=!expanded;
+  article.classList.toggle('is-expanded',expanded);
+}
+
+function updateSelection(s){
+  state.selectedStop=s;
+  document.querySelectorAll('.stop').forEach(article=>{
+    article.classList.toggle('is-selected',article.dataset.name===s.name);
+  });
+  ui.selectedName.textContent=s.name;
+  ui.mapSelection.hidden=false;
+}
+
+function selectStop(s,{expand=false,moveMap=false,openPopup=false}={}){
+  updateSelection(s);
+  if(expand){
+    document.querySelectorAll('.stop').forEach(article=>setExpanded(article,article.dataset.name===s.name));
+  }
+  const marker=markerRefs.get(s.name);
+  if(marker && moveMap) map.setView([s.lat,s.lon],Math.max(map.getZoom(),13),{animate:true});
+  if(marker && openPopup) marker.openPopup();
+}
+
+function clearSelection(){
+  state.selectedStop=null;
+  ui.mapSelection.hidden=true;
+  map.closePopup();
+}
+
+function renderMap(){
+  markerLayer.clearLayers();
+  lineLayer.clearLayers();
+  markerRefs.clear();
+  const visible=visibleStops();
+  visible.forEach(s=>{
+    const style=styleForStop(s);
+    const icon=L.divIcon({
+      className:'hand-marker-wrap',
+      html:`<span class="hand-marker ${style.className}">${style.symbol}</span>`,
+      iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-14]
+    });
+    const marker=L.marker([s.lat,s.lon],{icon}).bindPopup(renderPopup(s));
+    marker.on('click',()=>selectStop(s));
+    marker.addTo(markerLayer);
+    markerRefs.set(s.name,marker);
+  });
+  routeSegments().filter(Boolean).forEach(points=>L.polyline(points,{
+    color:state.day===0?'#64748b':(colors[visible[0]?.city]||'#1f6feb'),
+    weight:3,opacity:.72,dashArray:state.day===0?'6 7':null
+  }).addTo(lineLayer));
+}
+
+function renderDayButtons(){
+  const options=[{day:0,label:'全程'},...Array.from({length:6},(_,index)=>({day:index+1,label:`D${index+1}`}))];
+  if(!ui.days.children.length){
+    ui.days.innerHTML=options.map(option=>
+      `<button class="day" type="button" data-day="${option.day}">${option.label}</button>`
+    ).join('');
+  }
+  ui.days.querySelectorAll('.day').forEach(button=>{
+    const active=Number(button.dataset.day)===state.day;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+}
+
+function render(day,{animate=false}={}){
+  state.day=day;
+  clearSelection();
+  renderDayButtons();
+  renderList();
+  renderMap();
+  fitCurrentView(animate);
+}
+
+function setLegendState(expanded){
+  const mobile=window.matchMedia('(max-width:780px)').matches;
+  ui.legend.classList.toggle('is-open',mobile&&expanded);
+  ui.legend.classList.toggle('is-hidden',!mobile&&!expanded);
+  ui.legendToggle.setAttribute('aria-expanded',String(expanded));
+  ui.legendToggle.setAttribute('aria-label',expanded?'隐藏地点图例':'显示地点图例');
+  ui.legendToggle.title=expanded?'隐藏地点图例':'显示地点图例';
+}
+
+ui.days.addEventListener('click',event=>{
+  const button=event.target.closest('.day');
+  if(button) render(Number(button.dataset.day),{animate:true});
+});
+
+ui.stops.addEventListener('click',event=>{
+  const button=event.target.closest('.stop-toggle');
+  if(!button) return;
+  const article=button.closest('.stop');
+  const s=stopByName.get(article.dataset.name);
+  const expanded=button.getAttribute('aria-expanded')==='true';
+  if(expanded){
+    setExpanded(article,false);
+    return;
+  }
+  selectStop(s,{expand:true,moveMap:true,openPopup:true});
+});
+
+ui.viewSelected.addEventListener('click',()=>{
+  if(!state.selectedStop) return;
+  selectStop(state.selectedStop,{expand:true});
+  const selected=[...document.querySelectorAll('.stop')].find(article=>
+    article.dataset.name===state.selectedStop.name
+  );
+  selected?.scrollIntoView({behavior:'smooth',block:'start'});
+  selected?.querySelector('.stop-toggle')?.focus({preventScroll:true});
+});
+
+document.getElementById('fit-route').addEventListener('click',()=>fitCurrentView(true));
+ui.legendToggle.addEventListener('click',()=>{
+  const expanded=ui.legendToggle.getAttribute('aria-expanded')==='true';
+  setLegendState(!expanded);
+});
+
+map.on('popupopen',()=>document.querySelector('.map-shell').classList.add('has-popup'));
+map.on('popupclose',()=>document.querySelector('.map-shell').classList.remove('has-popup'));
+
+let wasMobile=window.matchMedia('(max-width:780px)').matches;
+setLegendState(!wasMobile);
+window.addEventListener('resize',()=>{
+  const isMobile=window.matchMedia('(max-width:780px)').matches;
+  if(isMobile!==wasMobile){
+    wasMobile=isMobile;
+    setLegendState(!isMobile);
+  }
+  window.requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+},{passive:true});
+
+render(0);
 </script>
 </body>
 </html>
