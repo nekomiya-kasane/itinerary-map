@@ -13,7 +13,7 @@
       --ink:#3a3028; --muted:#74675c; --line:#cfc2ad; --paper:#f3ead8; --card:#fffaf0;
       --blue:#386f72; --teal:#487c5b; --orange:#c76b3b; --purple:#765b83; --yellow:#c59b45;
       --focus:rgba(40,107,112,.38); --shadow:rgba(81,66,55,.16);
-      --z-map:1; --z-map-ui:400; --z-popup:700; --z-sticky:900;
+      --z-map:1; --z-map-ui:400; --z-popup:700; --z-sticky:900; --z-focus:2000;
     }
     * { box-sizing:border-box; }
     html { scroll-padding-top:72px; }
@@ -24,7 +24,8 @@
       font-family:"Noto Serif SC","Songti SC",serif;
     }
     button, a { -webkit-tap-highlight-color:transparent; }
-    .app { display:grid; grid-template-columns:minmax(320px,400px) minmax(0,1fr); height:100dvh; min-height:640px; }
+    body.map-focus { overflow:hidden; }
+    .app { display:grid; grid-template-columns:clamp(300px,24vw,360px) minmax(0,1fr); height:100dvh; min-height:640px; }
     .itinerary-panel {
       overflow:auto; border-right:2px dashed var(--line); background:rgba(255,250,240,.9); padding:22px 20px;
       scrollbar-color:var(--line) transparent;
@@ -42,7 +43,8 @@
       border-radius:7px 5px 8px 4px; padding:8px 11px; min-width:44px; min-height:44px; font-size:13px;
       font-family:inherit; cursor:pointer; box-shadow:2px 2px 0 rgba(91,68,45,.12); touch-action:manipulation;
     }
-    .day:focus-visible, .map-tool:focus-visible, .stop-toggle:focus-visible, .view-selected:focus-visible {
+    .day:focus-visible, .map-tool:focus-visible, .stop-toggle:focus-visible, .view-selected:focus-visible,
+    .selection-nav:focus-visible {
       outline:3px solid var(--focus); outline-offset:2px;
     }
     .day.active { border-color:var(--blue); background:#dcebe5; color:#285b5c; font-weight:700; transform:rotate(-1deg); }
@@ -82,9 +84,47 @@
     .stop-detail ul { margin:4px 0 10px 19px; padding:0; }
     .source-links { display:flex; flex-wrap:wrap; gap:8px; }
     .stop-detail a { display:inline-flex; align-items:center; min-height:32px; color:#286b70; text-decoration:underline; text-underline-offset:3px; }
-    .map-shell { position:relative; min-width:0; height:100%; background:#d8dfd2; }
+    .map-shell { position:relative; min-width:0; height:100%; background:#d8dfd2; isolation:isolate; }
     #map { z-index:var(--z-map); height:100%; min-height:640px; }
-    .map-selection { display:none; }
+    .map-shell.is-focus {
+      position:fixed; inset:0; z-index:var(--z-focus); width:100vw; height:100dvh; border:0;
+      animation:map-focus-in .2s ease-out;
+    }
+    .map-shell.is-focus #map { height:100dvh; min-height:0; }
+    @keyframes map-focus-in { from { opacity:.92; transform:scale(.992); } to { opacity:1; transform:scale(1); } }
+    .map-selection {
+      position:absolute; left:14px; bottom:14px; z-index:var(--z-map-ui); display:flex; align-items:center;
+      justify-content:space-between; gap:12px; width:min(520px,calc(100% - 310px)); min-height:58px;
+      padding:8px 10px 8px 14px;
+      background:rgba(255,250,240,.96); border:1px dashed #b9a98f; border-radius:7px 4px 8px 5px;
+      color:var(--muted); font-size:12px; box-shadow:3px 3px 0 rgba(81,66,55,.16);
+    }
+    .map-selection[hidden] { display:none; }
+    .selection-copy { min-width:0; line-height:1.35; }
+    .selection-copy strong {
+      display:block; overflow:hidden; color:var(--ink); font-size:14px; line-height:1.45; text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .selection-context { display:block; margin-top:2px; color:var(--muted); font-size:11px; }
+    .selection-actions { display:flex; flex:0 0 auto; align-items:center; gap:6px; }
+    .selection-nav {
+      display:grid; place-items:center; width:40px; height:40px; appearance:none; border:1px solid var(--line);
+      border-radius:48% 52% 45% 55%; background:#f9f0df; color:#514237; cursor:pointer; touch-action:manipulation;
+    }
+    .selection-nav svg { width:18px; height:18px; stroke:currentColor; }
+    .selection-nav:disabled { opacity:.38; cursor:not-allowed; }
+    .view-selected {
+      flex:0 0 auto; min-height:40px; appearance:none; border:1px solid var(--blue); border-radius:7px 5px 8px 4px;
+      padding:7px 12px; background:#dcebe5; color:#285b5c; font-family:inherit; font-size:13px; font-weight:700;
+      line-height:1.2; cursor:pointer;
+    }
+    .map-status {
+      position:absolute; top:14px; left:54px; z-index:var(--z-map-ui); max-width:min(320px,calc(100% - 128px));
+      padding:8px 11px; border:1px dashed #b9a98f; border-radius:6px 4px 7px 5px; background:rgba(255,250,240,.96);
+      color:#514237; font-size:12px; line-height:1.45; box-shadow:2px 2px 0 rgba(81,66,55,.14);
+    }
+    .map-status[hidden] { display:none; }
+    .map-status.is-error { color:#94452f; background:#fff0e8; }
     .leaflet-popup { z-index:var(--z-popup); }
     .leaflet-popup-content {
       margin:13px 15px; min-width:250px; max-width:320px; font-family:"Noto Serif SC","Songti SC",serif;
@@ -128,6 +168,16 @@
     .hand-marker.food { color:#ae5c48; background:#f2d8cb; }
     .hand-marker.village { color:#7b6650; background:#e8dcc7; }
     .hand-marker.shopping { color:#3f7390; background:#d8e8ef; }
+    .hand-marker.is-active {
+      border-color:#174f54; box-shadow:0 0 0 5px rgba(255,250,240,.92),0 0 0 8px rgba(40,107,112,.4),
+        3px 3px 0 rgba(81,66,55,.24);
+      transform:rotate(0deg) scale(1.08);
+    }
+    .leaflet-tooltip.stop-tooltip {
+      border:1px dashed #b9a98f; border-radius:5px 3px 6px 4px; background:rgba(255,250,240,.96); color:#514237;
+      box-shadow:2px 2px 0 rgba(81,66,55,.14); font-family:"Noto Serif SC","Songti SC",serif; font-size:12px;
+    }
+    .leaflet-tooltip-top.stop-tooltip::before { border-top-color:#b9a98f; }
     .map-tools { position:absolute; top:14px; right:14px; z-index:var(--z-map-ui); display:flex; flex-direction:column; gap:8px; }
     .map-tool {
       display:grid; place-items:center; width:44px; height:44px; border:1px solid #b9a98f;
@@ -135,12 +185,22 @@
       box-shadow:2px 2px 0 rgba(81,66,55,.18); font-family:inherit; cursor:pointer; touch-action:manipulation;
     }
     .map-tool svg { width:21px; height:21px; stroke:currentColor; }
+    .map-tool[aria-pressed="true"] { border-color:var(--blue); background:#dcebe5; color:#285b5c; }
+    .map-tool .contract-icon { display:none; }
+    .map-shell.is-focus .map-tool .expand-icon { display:none; }
+    .map-shell.is-focus .map-tool .contract-icon { display:block; }
+    .map-shell.is-focus .map-tools {
+      top:max(14px,env(safe-area-inset-top)); right:max(14px,env(safe-area-inset-right));
+    }
+    .map-shell.is-focus .map-selection {
+      left:max(14px,env(safe-area-inset-left)); bottom:max(14px,env(safe-area-inset-bottom));
+    }
     @media (hover:hover) and (pointer:fine) {
       .day:hover, .map-tool:hover, .stop-toggle:hover { background:#fff4dc; }
       .map-tool:hover { transform:rotate(-3deg); }
       .stop-detail a:hover, .popup-link:hover { color:#174f54; }
     }
-    @media (max-width:780px) {
+    @media (max-width:900px) {
       body { min-height:100svh; overflow-x:hidden; }
       .app { display:flex; flex-direction:column; min-height:100svh; height:auto; }
       .itinerary-panel { display:contents; }
@@ -157,18 +217,16 @@
       .days::-webkit-scrollbar { display:none; }
       .day { flex:0 0 auto; min-width:52px; padding:8px 14px; font-size:14px; scroll-snap-align:start; }
       .map-shell { order:2; height:auto; border-bottom:2px dashed var(--line); }
-      #map { height:clamp(290px,44svh,430px); min-height:290px; }
+      #map { height:clamp(340px,56svh,620px); min-height:340px; }
       .map-selection {
-        display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:54px; padding:8px 14px;
-        background:#fff7e8; border-top:1px dashed var(--line); color:var(--muted); font-size:13px;
+        position:static; width:100%; min-height:60px; padding:8px 12px 8px 14px; border:0;
+        border-top:1px dashed var(--line);
+        border-radius:0; background:#fff7e8; color:var(--muted); font-size:13px; box-shadow:none;
       }
       .map-selection[hidden] { display:none; }
-      .map-selection strong { display:block; color:var(--ink); font-size:14px; line-height:1.4; }
-      .view-selected {
-        flex:0 0 auto; min-height:40px; appearance:none; border:1px solid var(--blue); border-radius:7px 5px 8px 4px;
-        padding:7px 12px; background:#dcebe5; color:#285b5c; font-family:inherit; font-size:13px; font-weight:700;
-        line-height:1.2; cursor:pointer;
-      }
+      .selection-copy strong { font-size:14px; }
+      .selection-nav, .view-selected { min-width:44px; min-height:44px; }
+      .view-selected { padding:7px 10px; }
       .summary { order:3; padding:14px 16px; background:rgba(255,250,240,.9); }
       .summary-main { font-size:15px; }
       .summary-note { font-size:13px; }
@@ -187,6 +245,7 @@
       .legend { display:none; top:62px; right:10px; bottom:auto; max-width:calc(100% - 20px); font-size:12px; }
       .legend.is-open { display:block; }
       .map-tools { top:14px; right:10px; }
+      .map-status { top:14px; left:52px; max-width:calc(100% - 116px); }
       .leaflet-popup-content {
         width:calc(100vw - 62px) !important; min-width:0; max-width:calc(100vw - 62px); margin:12px 13px;
       }
@@ -201,12 +260,20 @@
       }
       .map-tools { transition:opacity .15s ease,transform .15s ease; }
       .map-shell.has-popup .map-tools { opacity:0; pointer-events:none; transform:translateY(-4px); }
+      .map-shell.is-focus .map-selection {
+        position:absolute; left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right));
+        bottom:max(10px,env(safe-area-inset-bottom)); width:auto; border:1px dashed #b9a98f;
+        border-radius:7px 4px 8px 5px;
+        box-shadow:3px 3px 0 rgba(81,66,55,.16);
+      }
     }
     @media (max-width:380px) {
       .trip-header { padding-left:14px; padding-right:14px; }
       h1 { font-size:26px; }
-      #map { height:42svh; min-height:270px; }
+      #map { height:clamp(320px,54svh,520px); min-height:320px; }
       .stop-detail { margin-left:16px; }
+      .selection-actions { gap:4px; }
+      .view-selected { padding-inline:8px; }
     }
     @media (prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto !important; transition-duration:.01ms !important; animation-duration:.01ms !important; } }
   </style>
@@ -233,13 +300,47 @@
       <button class="map-tool" id="fit-route" type="button" aria-label="重新查看当前路线" title="重新查看当前路线">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path><circle cx="12" cy="12" r="2"></circle></svg>
       </button>
+      <button class="map-tool" id="locate-user" type="button" aria-label="定位我的位置" title="定位我的位置">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+          <circle cx="12" cy="12" r="8"></circle>
+        </svg>
+      </button>
       <button class="map-tool" id="toggle-legend" type="button" aria-label="显示地点图例" aria-expanded="false" aria-controls="map-legend" title="显示地点图例">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
       </button>
+      <button class="map-tool" id="toggle-map-focus" type="button" aria-label="展开地图" aria-pressed="false" title="展开地图">
+        <svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"></path>
+        </svg>
+        <svg class="contract-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3v5H3M16 3v5h5M21 16h-5v5M3 16h5v5"></path>
+        </svg>
+      </button>
     </div>
+    <div class="map-status" id="map-status" role="status" aria-live="polite" hidden></div>
     <div class="map-selection" id="map-selection" aria-live="polite" hidden>
-      <span>地图已选择<strong id="selected-name"></strong></span>
-      <button class="view-selected" id="view-selected" type="button">查看详情</button>
+      <span class="selection-copy">地图已选择<strong id="selected-name"></strong>
+        <small class="selection-context" id="selected-context"></small>
+      </span>
+      <span class="selection-actions">
+        <button class="selection-nav" id="previous-stop" type="button" aria-label="上一个地点" title="上一个地点">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+        </button>
+        <button class="selection-nav" id="next-stop" type="button" aria-label="下一个地点" title="下一个地点">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </button>
+        <button class="view-selected" id="view-selected" type="button">详情</button>
+      </span>
     </div>
     <div class="legend" id="map-legend" role="note" aria-label="地点类型图例"><div class="legend-grid"><span class="legend-item"><i class="legend-symbol" style="color:#286b70">↔</i>交通</span><span class="legend-item"><i class="legend-symbol" style="color:#765b83">▣</i>文化</span><span class="legend-item"><i class="legend-symbol" style="color:#b36a37">≈</i>海滩</span><span class="legend-item"><i class="legend-symbol" style="color:#6b7e4d">⌁</i>路线</span><span class="legend-item"><i class="legend-symbol" style="color:#ad7d25">✦</i>观景</span><span class="legend-item"><i class="legend-symbol" style="color:#ae5c48">☕</i>餐饮</span><span class="legend-item"><i class="legend-symbol" style="color:#7b6650">⌂</i>村落</span><span class="legend-item"><i class="legend-symbol" style="color:#3f7390">▤</i>购物</span></div><div class="legend-note">虚线=跨城/跨海示意 · 橙色标签=约略坐标</div></div>
   </section>
@@ -361,19 +462,31 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 const markerLayer = L.layerGroup().addTo(map);
 const lineLayer = L.layerGroup().addTo(map);
+const userLocationLayer = L.layerGroup().addTo(map);
 const markerRefs = new Map();
 const stopByName = new Map(stops.map(stop=>[stop.name,stop]));
 const ui = {
+  app:document.querySelector('.app'),
+  itineraryPanel:document.querySelector('.itinerary-panel'),
+  mapShell:document.querySelector('.map-shell'),
   days:document.getElementById('days'),
   stops:document.getElementById('stops'),
   summary:document.getElementById('summary-main'),
   mapSelection:document.getElementById('map-selection'),
   selectedName:document.getElementById('selected-name'),
+  selectedContext:document.getElementById('selected-context'),
   viewSelected:document.getElementById('view-selected'),
+  previousStop:document.getElementById('previous-stop'),
+  nextStop:document.getElementById('next-stop'),
   legend:document.getElementById('map-legend'),
-  legendToggle:document.getElementById('toggle-legend')
+  legendToggle:document.getElementById('toggle-legend'),
+  focusToggle:document.getElementById('toggle-map-focus'),
+  locateButton:document.getElementById('locate-user'),
+  mapStatus:document.getElementById('map-status')
 };
-const state = {day:0, selectedStop:null};
+const state = {day:0, selectedStop:null, focus:false};
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion:reduce)');
+let statusTimer;
 
 function renderSourceLinks(s, className=''){
   return linksFor(s).map(link=>
@@ -437,7 +550,10 @@ function fitCurrentView(animate=true){
   if(!visible.length) return;
   const routePoints=routeSegments().filter(Boolean).flat();
   const points=visible.map(stop=>[stop.lat,stop.lon]).concat(routePoints);
-  map.fitBounds(L.latLngBounds(points).pad(.18), {maxZoom:state.day===0?8:13,animate});
+  map.fitBounds(L.latLngBounds(points).pad(.18), {
+    maxZoom:state.day===0?8:13,
+    animate:animate&&!prefersReducedMotion.matches
+  });
 }
 
 function renderList(){
@@ -461,7 +577,16 @@ function updateSelection(s){
   document.querySelectorAll('.stop').forEach(article=>{
     article.classList.toggle('is-selected',article.dataset.name===s.name);
   });
+  markerRefs.forEach((marker,name)=>{
+    marker.getElement()?.querySelector('.hand-marker')?.classList.toggle('is-active',name===s.name);
+    marker.setZIndexOffset(name===s.name?1000:0);
+  });
+  const visible=visibleStops();
+  const index=visible.findIndex(stop=>stop.name===s.name);
   ui.selectedName.textContent=s.name;
+  ui.selectedContext.textContent=`D${s.day} · ${s.city} · 第 ${index+1}/${visible.length} 站`;
+  ui.previousStop.disabled=index<=0;
+  ui.nextStop.disabled=index<0 || index>=visible.length-1;
   ui.mapSelection.hidden=false;
 }
 
@@ -471,13 +596,22 @@ function selectStop(s,{expand=false,moveMap=false,openPopup=false}={}){
     document.querySelectorAll('.stop').forEach(article=>setExpanded(article,article.dataset.name===s.name));
   }
   const marker=markerRefs.get(s.name);
-  if(marker && moveMap) map.setView([s.lat,s.lon],Math.max(map.getZoom(),13),{animate:true});
+  if(marker && moveMap){
+    const zoom=Math.max(map.getZoom(),13);
+    if(prefersReducedMotion.matches) map.setView([s.lat,s.lon],zoom,{animate:false});
+    else map.flyTo([s.lat,s.lon],zoom,{duration:.55});
+  }
   if(marker && openPopup) marker.openPopup();
 }
 
 function clearSelection(){
   state.selectedStop=null;
   ui.mapSelection.hidden=true;
+  document.querySelectorAll('.stop.is-selected').forEach(article=>article.classList.remove('is-selected'));
+  markerRefs.forEach(marker=>{
+    marker.getElement()?.querySelector('.hand-marker')?.classList.remove('is-active');
+    marker.setZIndexOffset(0);
+  });
   map.closePopup();
 }
 
@@ -493,7 +627,9 @@ function renderMap(){
       html:`<span class="hand-marker ${style.className}">${style.symbol}</span>`,
       iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-14]
     });
-    const marker=L.marker([s.lat,s.lon],{icon}).bindPopup(renderPopup(s));
+    const marker=L.marker([s.lat,s.lon],{icon,title:s.name,riseOnHover:true,keyboard:true})
+      .bindTooltip(s.name,{direction:'top',offset:[0,-16],className:'stop-tooltip'})
+      .bindPopup(renderPopup(s));
     marker.on('click',()=>selectStop(s));
     marker.addTo(markerLayer);
     markerRefs.set(s.name,marker);
@@ -528,12 +664,41 @@ function render(day,{animate=false}={}){
 }
 
 function setLegendState(expanded){
-  const mobile=window.matchMedia('(max-width:780px)').matches;
+  const mobile=window.matchMedia('(max-width:900px)').matches;
   ui.legend.classList.toggle('is-open',mobile&&expanded);
   ui.legend.classList.toggle('is-hidden',!mobile&&!expanded);
   ui.legendToggle.setAttribute('aria-expanded',String(expanded));
   ui.legendToggle.setAttribute('aria-label',expanded?'隐藏地点图例':'显示地点图例');
   ui.legendToggle.title=expanded?'隐藏地点图例':'显示地点图例';
+}
+
+function setMapStatus(message,{error=false,duration=4200}={}){
+  window.clearTimeout(statusTimer);
+  ui.mapStatus.textContent=message;
+  ui.mapStatus.classList.toggle('is-error',error);
+  ui.mapStatus.hidden=false;
+  statusTimer=window.setTimeout(()=>{ ui.mapStatus.hidden=true; },duration);
+}
+
+function setMapFocus(expanded,{restoreFocus=false}={}){
+  state.focus=expanded;
+  ui.mapShell.classList.toggle('is-focus',expanded);
+  document.body.classList.toggle('map-focus',expanded);
+  ui.itineraryPanel.inert=expanded;
+  ui.focusToggle.setAttribute('aria-pressed',String(expanded));
+  ui.focusToggle.setAttribute('aria-label',expanded?'收起地图':'展开地图');
+  ui.focusToggle.title=expanded?'收起地图（Esc）':'展开地图';
+  window.requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+  window.setTimeout(()=>map.invalidateSize({pan:false}),230);
+  if(restoreFocus) ui.focusToggle.focus({preventScroll:true});
+}
+
+function selectRelativeStop(offset){
+  const visible=visibleStops();
+  if(!visible.length) return;
+  const index=state.selectedStop?visible.findIndex(stop=>stop.name===state.selectedStop.name):-1;
+  const target=visible[Math.min(visible.length-1,Math.max(0,index+offset))];
+  if(target) selectStop(target,{moveMap:true,openPopup:true});
 }
 
 ui.days.addEventListener('click',event=>{
@@ -565,24 +730,65 @@ ui.viewSelected.addEventListener('click',()=>{
 });
 
 document.getElementById('fit-route').addEventListener('click',()=>fitCurrentView(true));
+ui.previousStop.addEventListener('click',()=>selectRelativeStop(-1));
+ui.nextStop.addEventListener('click',()=>selectRelativeStop(1));
 ui.legendToggle.addEventListener('click',()=>{
   const expanded=ui.legendToggle.getAttribute('aria-expanded')==='true';
   setLegendState(!expanded);
 });
+ui.focusToggle.addEventListener('click',()=>setMapFocus(!state.focus));
+ui.locateButton.addEventListener('click',()=>{
+  if(!navigator.geolocation){
+    setMapStatus('当前浏览器不支持定位。',{error:true});
+    return;
+  }
+  ui.locateButton.disabled=true;
+  setMapStatus('正在获取你的位置…',{duration:10000});
+  map.locate({setView:true,maxZoom:15,enableHighAccuracy:true,timeout:10000});
+});
 
-map.on('popupopen',()=>document.querySelector('.map-shell').classList.add('has-popup'));
-map.on('popupclose',()=>document.querySelector('.map-shell').classList.remove('has-popup'));
+map.on('locationfound',event=>{
+  ui.locateButton.disabled=false;
+  userLocationLayer.clearLayers();
+  L.circle(event.latlng,{radius:event.accuracy,color:'#286b70',weight:1,fillColor:'#6eb5b0',fillOpacity:.12})
+    .addTo(userLocationLayer);
+  L.circleMarker(event.latlng,{radius:7,color:'#fffaf0',weight:3,fillColor:'#286b70',fillOpacity:1})
+    .bindTooltip('你的位置',{permanent:false,direction:'top',className:'stop-tooltip'})
+    .addTo(userLocationLayer);
+  setMapStatus(`已定位，精度约 ${Math.round(event.accuracy)} 米。`);
+});
+map.on('locationerror',event=>{
+  ui.locateButton.disabled=false;
+  const denied=event.code===1;
+  setMapStatus(denied?'未获得定位权限；可在浏览器设置中允许后重试。':'暂时无法定位，请检查网络或系统定位服务。',{
+    error:true,duration:6200
+  });
+});
+map.on('popupopen',()=>ui.mapShell.classList.add('has-popup'));
+map.on('popupclose',()=>ui.mapShell.classList.remove('has-popup'));
+map.on('click',()=>clearSelection());
 
-let wasMobile=window.matchMedia('(max-width:780px)').matches;
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && state.focus){
+    event.preventDefault();
+    setMapFocus(false,{restoreFocus:true});
+  }
+});
+
+let wasMobile=window.matchMedia('(max-width:900px)').matches;
 setLegendState(!wasMobile);
 window.addEventListener('resize',()=>{
-  const isMobile=window.matchMedia('(max-width:780px)').matches;
+  const isMobile=window.matchMedia('(max-width:900px)').matches;
   if(isMobile!==wasMobile){
     wasMobile=isMobile;
     setLegendState(!isMobile);
   }
   window.requestAnimationFrame(()=>map.invalidateSize({pan:false}));
 },{passive:true});
+
+if('ResizeObserver' in window){
+  new ResizeObserver(()=>window.requestAnimationFrame(()=>map.invalidateSize({pan:false}))).observe(ui.mapShell);
+}
 
 render(0);
 </script>
