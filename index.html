@@ -237,13 +237,15 @@ function draw(day){
   visible.forEach((s,i)=>{ const style=styleForStop(s); const icon=L.divIcon({className:'hand-marker-wrap',html:`<span class="hand-marker ${style.className}">${style.symbol}</span>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-14]}); const m=L.marker([s.lat,s.lon],{icon}); m.bindPopup(popup(s)); m.on('click',()=>selectStop(s)); m.addTo(markerLayer); markerRefs.set(s.name,m); });
   const routes = day === 0 ? Object.values(dayRoute) : [dayRoute[day]];
   routes.filter(Boolean).forEach((pts,idx)=>L.polyline(pts,{color:day===0?'#64748b':(colors[visible[0]?.city]||'#1f6feb'),weight:3,opacity:.72,dashArray:day===0?'6 7':null}).addTo(lineLayer));
-  if(visible.length){ const bounds=L.latLngBounds(visible.map(s=>[s.lat,s.lon])); map.fitBounds(bounds.pad(.18),{maxZoom:day===0?8:13}); }
+  if(visible.length){ const routePoints=routes.filter(Boolean).flat(); const bounds=L.latLngBounds(visible.map(s=>[s.lat,s.lon]).concat(routePoints)); map.fitBounds(bounds.pad(.18),{maxZoom:day===0?8:13}); }
   renderList(day, visible);
 }
 function fitCurrentView(){
   const visible=currentDay===0 ? stops : stops.filter(s=>s.day===currentDay);
   if(!visible.length) return;
-  map.fitBounds(L.latLngBounds(visible.map(s=>[s.lat,s.lon])).pad(.18),{maxZoom:currentDay===0?8:13, animate:true});
+  const routes=currentDay===0 ? Object.values(dayRoute) : [dayRoute[currentDay]];
+  const routePoints=routes.filter(Boolean).flat();
+  map.fitBounds(L.latLngBounds(visible.map(s=>[s.lat,s.lon]).concat(routePoints)).pad(.18),{maxZoom:currentDay===0?8:13, animate:true});
 }
 function renderList(day, visible){ const wrap=document.getElementById('stops'); wrap.innerHTML=''; visible.forEach((s,i)=>{ const info=infoFor(s); const style=styleForStop(s); const el=document.createElement('article'); el.className='stop'; el.dataset.name=s.name; el.setAttribute('tabindex','0'); el.setAttribute('role','button'); el.setAttribute('aria-expanded','false'); el.innerHTML=`<div class="stop-head"><span class="num">${String(i+1).padStart(2,'0')}</span><span class="hand-marker ${style.className}" style="display:inline-grid;width:22px;height:22px;font-size:12px">${style.symbol}</span><h2>${escapeHtml(s.name)}</h2></div><p>${escapeHtml(s.time)} · ${escapeHtml(s.kind)}</p><span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span><div class="detail"><p><strong>行程说明：</strong>${escapeHtml(s.note)}</p><p><strong>外部介绍：</strong>${escapeHtml(info.intro)}</p>${info.highlights.length?`<p><strong>看点：</strong></p><ul>${info.highlights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}<p><strong>实用提示：</strong>${escapeHtml(info.tips)}</p><p><strong>出处：</strong>${linksFor(s).map(x=>`<a href="${x.url}" target="_blank" rel="noopener">${escapeHtml(x.label)} ↗</a>`).join(' · ')}</p></div>`; const activate=()=>{ const wasSelected=el.classList.contains('selected'); selectStop(s); if(wasSelected){ el.classList.remove('selected'); el.setAttribute('aria-expanded','false'); } else { el.setAttribute('aria-expanded','true'); } }; el.onclick=activate; el.onkeydown=e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); activate(); } }; el.querySelectorAll('a').forEach(a=>a.addEventListener('click',e=>e.stopPropagation())); wrap.appendChild(el); }); document.getElementById('summary').textContent=`${day===0?'全程':`D${day}`} · ${visible.length} 个地点。路线线段为行程示意，跨城/跨海段不代表实际道路或航线。跨城/跨海虚线仅表达行程顺序，不代表实际道路或航线。`;
 }
