@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>华东六日行程地图</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root { --ink:#17212b; --muted:#687684; --line:#dfe5ea; --paper:#f7f9fb; --card:#fff; --blue:#1f6feb; --teal:#0f766e; --orange:#c2410c; --purple:#7c3aed; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    .app { display:grid; grid-template-columns:minmax(300px,390px) 1fr; height:100vh; min-height:640px; }
+    aside { overflow:auto; border-right:1px solid var(--line); background:var(--card); padding:22px 20px; }
+    h1 { margin:0 0 6px; font-size:22px; line-height:1.25; letter-spacing:0; }
+    .lede { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.55; }
+    .days { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px; }
+    .day { appearance:none; border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:7px; padding:8px 10px; font-size:13px; cursor:pointer; }
+    .day.active { border-color:var(--blue); background:#eaf2ff; color:#174ea6; font-weight:600; }
+    .summary { font-size:12px; color:var(--muted); padding:10px 0 13px; border-bottom:1px solid var(--line); }
+    .stop { border-bottom:1px solid var(--line); padding:14px 0; cursor:pointer; }
+    .stop:hover, .stop.selected { background:#f2f7ff; margin:0 -10px; padding-left:10px; padding-right:10px; }
+    .stop-head { display:flex; gap:8px; align-items:baseline; }
+    .num { color:var(--blue); font-variant-numeric:tabular-nums; font-weight:700; width:22px; }
+    .stop h2 { font-size:15px; margin:0; line-height:1.35; }
+    .stop p { margin:5px 0 0 30px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .tag { display:inline-block; margin:7px 0 0 30px; padding:2px 6px; border-radius:4px; background:#eef2f6; color:#52606d; font-size:11px; }
+    .tag.approx { background:#fff2e8; color:#9a3412; }
+    .detail { display:none; border-top:1px solid var(--line); margin-top:10px; padding-top:11px; font-size:12px; line-height:1.55; }
+    .stop.selected .detail { display:block; }
+    .detail strong { color:var(--ink); }
+    .detail a { color:var(--blue); text-decoration:none; }
+    .detail a:hover { text-decoration:underline; }
+    #map { height:100%; min-height:640px; }
+    .leaflet-popup-content { margin:12px 14px; min-width:220px; }
+    .popup-title { font-weight:700; font-size:15px; margin-bottom:4px; }
+    .popup-meta { color:#586675; font-size:12px; line-height:1.5; }
+    .popup-link { display:inline-block; margin-top:8px; color:#1f6feb; font-size:12px; text-decoration:none; }
+    .legend { position:absolute; right:14px; bottom:18px; z-index:500; background:rgba(255,255,255,.94); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-size:11px; line-height:1.7; box-shadow:0 1px 4px rgba(23,33,43,.12); }
+    .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:0; }
+    .source-note { margin-top:16px; color:var(--muted); font-size:11px; line-height:1.5; }
+    .source-note a { color:var(--blue); }
+    @media (max-width:780px) { .app { grid-template-columns:1fr; grid-template-rows:52vh auto; height:auto; } #map { min-height:52vh; grid-row:1; } aside { grid-row:2; border-right:0; border-top:1px solid var(--line); } .legend { bottom:auto; top:14px; } }
+  </style>
+</head>
+<body>
+<main class="app">
+  <aside>
+    <h1>华东六日行程地图</h1>
+    <p class="lede">上海 → 杭州 → 宁波 → 枸杞岛 → 泗礁岛 → 上海。点击日期筛选路线，点击地点查看时间、交通与出处。</p>
+    <div class="days" id="days" aria-label="按日期筛选"></div>
+    <div class="summary" id="summary" aria-live="polite"></div>
+    <section id="stops" aria-label="行程地点"></section>
+    <div class="source-note">坐标底图：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>。海岛沙滩与观景点以景区/村落附近约略坐标表示；出发前请以官方票务和当日船班为准。</div>
+  </aside>
+  <div id="map" aria-label="行程交互地图"></div>
+</main>
+<div class="legend"><span class="dot" style="background:#1f6feb"></span>杭州&nbsp;&nbsp;<span class="dot" style="background:#0f766e"></span>宁波&nbsp;&nbsp;<span class="dot" style="background:#c2410c"></span>枸杞岛&nbsp;&nbsp;<span class="dot" style="background:#7c3aed"></span>泗礁岛<br><span style="color:#64748b">虚线=跨城/跨海示意&nbsp;·&nbsp;橙色标签=约略坐标</span></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const stops = [
+  {day:1, name:'杭州东站', city:'杭州', kind:'交通节点', lat:30.2901, lon:120.2120, time:'23:35 抵达', note:'上海虹桥 → 杭州东，CSV 参考车次 G9449。', source:'https://www.12306.cn/index/', sourceLabel:'铁路 12306'},
+  {day:2, name:'断桥残雪', city:'杭州', kind:'西湖北线', lat:30.261531, lon:120.147367, time:'上午，建议 09:00 前', note:'西湖十景之一；由断桥沿白堤步行。', source:'https://www.openstreetmap.org/search?query=%E6%96%AD%E6%A1%A5%E6%AE%8B%E9%9B%AA%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'白堤', city:'杭州', kind:'西湖北线', lat:30.255504, lon:120.142350, time:'上午', note:'连接断桥与孤山的湖岸步行线。', source:'https://www.openstreetmap.org/search?query=%E7%99%BD%E5%A0%A4%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'孤山 · 西泠印社', city:'杭州', kind:'西湖北线', lat:30.2583, lon:120.1372, time:'上午', note:'孤山片区；西泠印社官网可核验开放信息。', source:'https://www.xlys.org.cn/', sourceLabel:'西泠印社'},
+  {day:2, name:'浙江省博物馆（孤山馆）', city:'杭州', kind:'博物馆', lat:30.2588, lon:120.1400, time:'上午', note:'CSV 标注为浙博孤山馆；具体展厅开放以馆方公告为准。', source:'https://www.zhejiangmuseum.com/', sourceLabel:'浙江省博物馆'},
+  {day:2, name:'岳王庙', city:'杭州', kind:'西湖北线', lat:30.254703, lon:120.129810, time:'上午', note:'岳飞墓、岳王祠所在纪念性景区。', source:'https://www.openstreetmap.org/search?query=%E5%B2%B3%E7%8E%8B%E5%BA%99%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'曲院风荷', city:'杭州', kind:'西湖北线', lat:30.252166, lon:120.128677, time:'上午', note:'西湖西北岸公园，适合与岳王庙顺路安排。', source:'https://www.openstreetmap.org/search?query=%E6%9B%B2%E9%99%A2%E9%A3%8E%E8%8D%B7%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'净慈寺', city:'杭州', kind:'西湖南线', lat:30.230987, lon:120.144062, time:'下午，CSV 提醒 17:00 关', note:'南屏山麓古刹；请以寺院当日公告核验开放时间。', source:'https://www.openstreetmap.org/search?query=%E5%87%80%E6%85%88%E5%AF%BA%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'雷峰塔', city:'杭州', kind:'西湖南线', lat:30.2317, lon:120.1489, time:'下午', note:'需登塔购票；与净慈寺、长桥公园相邻。', source:'https://www.leifengta.com/', sourceLabel:'雷峰塔景区'},
+  {day:2, name:'长桥公园', city:'杭州', kind:'日落', lat:30.2300, lon:120.1484, time:'傍晚', note:'CSV 计划在此看日落；日落时间随日期变化。', source:'https://www.openstreetmap.org/search?query=%E9%95%BF%E6%A1%A5%E5%85%AC%E5%9B%AD%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'柳浪闻莺', city:'杭州', kind:'西湖南线', lat:30.2387, lon:120.1582, time:'晚上', note:'湖滨绿地，适合步行衔接湖滨商圈。', source:'https://www.openstreetmap.org/search?query=%E6%9F%B3%E6%B5%AA%E9%97%BB%E8%8E%BA%20%E6%9D%AD%E5%B7%9E', sourceLabel:'地图坐标检索'},
+  {day:2, name:'湖滨银泰 in77', city:'杭州', kind:'餐饮/购物', lat:30.2564, lon:120.1642, time:'晚上', note:'晚餐与逛街；商户营业时间以商场公告为准。', source:'https://www.intime.com.cn/', sourceLabel:'银泰商业'},
+  {day:3, name:'灵隐寺 · 飞来峰', city:'杭州', kind:'佛教寺院/石窟', lat:30.2406, lon:120.1033, time:'07:30—10:30', note:'CSV 提醒需预约；先确认灵隐寺与飞来峰的分开购票/预约规则。', source:'https://www.lingyinsi.org/', sourceLabel:'灵隐寺官网'},
+  {day:3, name:'宁波站', city:'宁波', kind:'交通节点', lat:29.8697, lon:121.5310, time:'13:32 抵达', note:'杭州东 → 宁波，CSV 参考车次 G9461。', source:'https://www.12306.cn/index/', sourceLabel:'铁路 12306'},
+  {day:3, name:'宁波美术馆', city:'宁波', kind:'博物馆', lat:29.8819, lon:121.5687, time:'下午', note:'老外滩片区文化场馆；开放安排以馆方公告为准。', source:'https://www.nbmoa.com/', sourceLabel:'宁波美术馆'},
+  {day:3, name:'中马路历史街区', city:'宁波', kind:'历史街区', lat:29.8837, lon:121.5658, time:'下午', note:'老外滩东侧历史街区，适合步行串联。', source:'https://www.openstreetmap.org/search?query=%E4%B8%AD%E9%A9%AC%E8%B7%AF%20%E5%AE%81%E6%B3%A2', sourceLabel:'地图坐标检索'},
+  {day:3, name:'江北天主教堂', city:'宁波', kind:'历史建筑', lat:29.8842, lon:121.5668, time:'下午', note:'宗教场所，请遵守开放时间与参观礼仪。', source:'https://www.openstreetmap.org/search?query=%E6%B1%9F%E5%8C%97%E5%A4%A9%E4%B8%BB%E6%95%99%E5%A0%82%20%E5%AE%81%E6%B3%A2', sourceLabel:'地图坐标检索'},
+  {day:3, name:'三江口', city:'宁波', kind:'滨水景观', lat:29.8754, lon:121.5500, time:'下午/夜游', note:'姚江、奉化江、甬江汇合处；三江夜游船班需提前购票。', source:'https://www.nbwh.gov.cn/', sourceLabel:'宁波文旅'},
+  {day:3, name:'宁波老外滩', city:'宁波', kind:'夜游/餐饮', lat:29.8831, lon:121.5682, time:'下午至晚上', note:'CSV 建议地铁+步行，不建议自驾。', source:'https://www.openstreetmap.org/search?query=%E5%AE%81%E6%B3%A2%E8%80%81%E5%A4%96%E6%BB%A9', sourceLabel:'地图坐标检索'},
+  {day:4, name:'燕窝山码头', city:'岱山', kind:'交通节点', lat:30.2600, lon:121.9850, time:'车船联运中转', note:'宁波公运车船联运路径的中转码头；班次和天气影响需现场确认。', source:'https://www.nbgy.com/', sourceLabel:'宁波公运'},
+  {day:4, name:'干斜码头', city:'枸杞岛', kind:'交通节点', lat:30.7210, lon:122.7770, time:'约 10:35 抵达', note:'CSV 记录的枸杞岛抵达码头；岛上接驳以当天安排为准。', source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:4, name:'大王沙滩', city:'枸杞岛', kind:'海滩', lat:30.7245, lon:122.7605, time:'下午', note:'约略坐标；海滩入口与潮汐、天气有关。', approx:true, source:'https://www.openstreetmap.org/search?query=%E5%A4%A7%E7%8E%8B%E6%B2%99%E6%BB%A9%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:4, name:'龙泉沙滩', city:'枸杞岛', kind:'海滩', lat:30.7330, lon:122.7900, time:'下午', note:'约略坐标；建议向民宿确认实时入口。', approx:true, source:'https://www.openstreetmap.org/search?query=%E9%BE%99%E6%B3%89%E6%B2%99%E6%BB%A9%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:4, name:'山海奇观', city:'枸杞岛', kind:'观景台/日落', lat:30.7110, lon:122.7630, time:'日落', note:'约略坐标；CSV 标为日落必去点。', approx:true, source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:5, name:'东昇村彩虹公路', city:'枸杞岛', kind:'村落/公路', lat:30.7440, lon:122.7890, time:'上午', note:'村落道路为约略坐标，骑行请注意坡度与会车。', approx:true, source:'https://www.openstreetmap.org/search?query=%E4%B8%9C%E6%98%87%E6%9D%91%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:5, name:'大岙沙滩', city:'枸杞岛', kind:'海滩', lat:30.7350, lon:122.7800, time:'上午', note:'约略坐标。', approx:true, source:'https://www.openstreetmap.org/search?query=%E5%A4%A7%E5%B2%99%E6%B2%99%E6%BB%A9%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:5, name:'北岸公路', city:'枸杞岛', kind:'骑行路线', lat:30.7480, lon:122.7740, time:'上午', note:'CSV 规划的沿海骑行段；以道路和天气状况决定是否完整骑行。', approx:true, source:'https://www.openstreetmap.org/search?query=%E5%8C%97%E5%B2%B8%E5%85%AC%E8%B7%AF%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:5, name:'龙泉村', city:'枸杞岛', kind:'村落', lat:30.7390, lon:122.7920, time:'上午', note:'CSV 规划的村落停留点；村道位置以现场指引为准。', approx:true, source:'https://www.openstreetmap.org/search?query=%E9%BE%99%E6%B3%89%E6%9D%91%20%E6%9E%B8%E6%9D%9E%E5%B2%9B', sourceLabel:'地图坐标检索'},
+  {day:5, name:'基湖沙滩', city:'泗礁岛', kind:'海滩', lat:30.7355, lon:122.4790, time:'下午', note:'约略坐标；泗礁岛主岛景点。', approx:true, source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:5, name:'左岸公路', city:'泗礁岛', kind:'骑行路线', lat:30.7200, lon:122.4700, time:'16:00—18:00', note:'线性路线，用中心点表示；具体骑行方向受风况与道路开放影响。', approx:true, source:'https://www.openstreetmap.org/search?query=%E5%B7%A6%E5%B2%B8%E5%85%AC%E8%B7%AF%20%E5%B5%8A%E6%B3%97', sourceLabel:'地图坐标检索'},
+  {day:6, name:'六井潭 + 和尚套', city:'泗礁岛', kind:'联票景区', lat:30.6670, lon:122.5310, time:'上午，联票约 50 元', note:'CSV 标注两个景点由栈道相连；具体开放和联票以景区公告为准。', approx:true, source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:6, name:'东海渔村（田岙村）', city:'泗礁岛', kind:'渔村', lat:30.6900, lon:122.5000, time:'上午', note:'约略坐标。', approx:true, source:'https://www.openstreetmap.org/search?query=%E4%B8%9C%E6%B5%B7%E6%B8%94%E6%9D%91%20%E7%94%B0%E5%B2%99%E6%9D%91', sourceLabel:'地图坐标检索'},
+  {day:6, name:'大悲山观景台', city:'泗礁岛', kind:'观景台', lat:30.7420, lon:122.4800, time:'上午', note:'约略坐标；CSV 提到白色灯塔为东海日出机位。', approx:true, source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:6, name:'李柱山码头', city:'泗礁岛', kind:'交通节点', lat:30.7330, lon:122.4510, time:'下午返程', note:'车船联票 → 上海南浦大桥；CSV 参考班次 12:10 或 14:00 左右。', source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'},
+  {day:6, name:'上海南浦大桥客运站', city:'上海', kind:'返程交通节点', lat:31.2070, lon:121.4940, time:'抵达上海', note:'班次受天气影响，以嵊泗客运/游嵊泗当天信息为准。', source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'}
+];
+
+const colors = {杭州:'#1f6feb', 宁波:'#0f766e', 枸杞岛:'#c2410c', 泗礁岛:'#7c3aed', 岱山:'#b45309', 上海:'#475569'};
+const map = L.map('map', { preferCanvas:true }).setView([30.55,121.35], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+const markerLayer = L.layerGroup().addTo(map); const lineLayer = L.layerGroup().addTo(map); const markerRefs = new Map();
+const dayRoute = {
+  1:[[31.197,121.321],[30.2901,120.2120]],
+  2:stops.filter(s=>s.day===2).map(s=>[s.lat,s.lon]),
+  3:[[30.2406,120.1033],[29.8697,121.5310],[29.8819,121.5687],[29.8831,121.5682],[29.8754,121.5500]],
+  4:[[29.87,121.53],[30.26,121.985],[30.721,122.777],[30.7245,122.7605],[30.711,122.763]],
+  5:[[30.744,122.789],[30.735,122.780],[30.748,122.774],[30.739,122.792],[30.7355,122.479],[30.720,122.470]],
+  6:[[30.667,122.531],[30.690,122.500],[30.742,122.480],[30.733,122.451],[31.207,121.494]]
+};
+function popup(s){ return `<div class="popup-title">${s.name}</div><div class="popup-meta">D${s.day} · ${s.city} · ${s.kind}<br>${s.time}<br>${s.note}</div><a class="popup-link" href="${s.source}" target="_blank" rel="noopener">${s.sourceLabel} ↗</a>`; }
+function draw(day){
+  markerLayer.clearLayers(); lineLayer.clearLayers(); markerRefs.clear();
+  const visible = day === 0 ? stops : stops.filter(s=>s.day===day);
+  visible.forEach((s,i)=>{ const color=colors[s.city]||'#334155'; const m=L.circleMarker([s.lat,s.lon],{radius:7,weight:2,color:'#fff',fillColor:color,fillOpacity:.95}); m.bindPopup(popup(s)); m.on('click',()=>selectStop(s)); m.addTo(markerLayer); markerRefs.set(s.name,m); });
+  const routes = day === 0 ? Object.values(dayRoute) : [dayRoute[day]];
+  routes.filter(Boolean).forEach((pts,idx)=>L.polyline(pts,{color:day===0?'#64748b':(colors[visible[0]?.city]||'#1f6feb'),weight:3,opacity:.72,dashArray:day===0?'6 7':null}).addTo(lineLayer));
+  if(visible.length){ const bounds=L.latLngBounds(visible.map(s=>[s.lat,s.lon])); map.fitBounds(bounds.pad(.18),{maxZoom:day===0?8:13}); }
+  renderList(day, visible);
+}
+function renderList(day, visible){ const wrap=document.getElementById('stops'); wrap.innerHTML=''; visible.forEach((s,i)=>{ const el=document.createElement('article'); el.className='stop'; el.dataset.name=s.name; el.innerHTML=`<div class="stop-head"><span class="num">${String(i+1).padStart(2,'0')}</span><h2>${s.name}</h2></div><p>${s.time} · ${s.kind}</p><span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span><div class="detail"><strong>行程说明：</strong>${s.note}<br><strong>出处：</strong><a href="${s.source}" target="_blank" rel="noopener">${s.sourceLabel} ↗</a></div>`; el.onclick=()=>selectStop(s); wrap.appendChild(el); }); document.getElementById('summary').textContent=`${day===0?'全程':`D${day}`} · ${visible.length} 个地点。路线线段为行程示意，跨城/跨海段不代表实际道路或航线。`; }
+function selectStop(s){ document.querySelectorAll('.stop').forEach(x=>x.classList.toggle('selected',x.dataset.name===s.name)); const m=markerRefs.get(s.name); if(m){ map.setView([s.lat,s.lon],Math.max(map.getZoom(),13),{animate:true}); m.openPopup(); } }
+const days=document.getElementById('days'); [{n:0,t:'全程'},...Array.from({length:6},(_,i)=>({n:i+1,t:`D${i+1}`}))].forEach(d=>{ const b=document.createElement('button'); b.className='day'+(d.n===0?' active':''); b.textContent=d.t; b.type='button'; b.onclick=()=>{document.querySelectorAll('.day').forEach(x=>x.classList.remove('active')); b.classList.add('active'); draw(d.n);}; days.appendChild(b); });
+draw(0);
+</script>
+</body>
+</html>
