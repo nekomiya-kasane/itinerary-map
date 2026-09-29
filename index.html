@@ -4,42 +4,66 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>华东六日行程地图</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    :root { --ink:#17212b; --muted:#687684; --line:#dfe5ea; --paper:#f7f9fb; --card:#fff; --blue:#1f6feb; --teal:#0f766e; --orange:#c2410c; --purple:#7c3aed; }
+    :root { --ink:#3a3028; --muted:#74675c; --line:#cfc2ad; --paper:#f3ead8; --card:#fffaf0; --blue:#386f72; --teal:#487c5b; --orange:#c76b3b; --purple:#765b83; --yellow:#c59b45; }
     * { box-sizing:border-box; }
-    body { margin:0; color:var(--ink); background:var(--paper); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    body { margin:0; color:var(--ink); background-color:var(--paper); background-image:repeating-linear-gradient(0deg,rgba(100,74,42,.035) 0,rgba(100,74,42,.035) 1px,transparent 1px,transparent 4px); font-family:"Noto Serif SC","Songti SC",serif; }
     .app { display:grid; grid-template-columns:minmax(300px,390px) 1fr; height:100vh; min-height:640px; }
-    aside { overflow:auto; border-right:1px solid var(--line); background:var(--card); padding:22px 20px; }
-    h1 { margin:0 0 6px; font-size:22px; line-height:1.25; letter-spacing:0; }
-    .lede { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.55; }
-    .days { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 16px; }
-    .day { appearance:none; border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:7px; padding:8px 10px; font-size:13px; cursor:pointer; }
-    .day.active { border-color:var(--blue); background:#eaf2ff; color:#174ea6; font-weight:600; }
-    .summary { font-size:12px; color:var(--muted); padding:10px 0 13px; border-bottom:1px solid var(--line); }
-    .stop { border-bottom:1px solid var(--line); padding:14px 0; cursor:pointer; }
-    .stop:hover, .stop.selected { background:#f2f7ff; margin:0 -10px; padding-left:10px; padding-right:10px; }
+    aside { overflow:auto; border-right:2px dashed var(--line); background:rgba(255,250,240,.88); padding:22px 20px; }
+    h1 { margin:0 0 6px; font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:30px; font-weight:400; line-height:1.15; letter-spacing:0; color:#514237; }
+    .lede { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.7; }
+    .days { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0 16px; }
+    .day { appearance:none; border:1px solid var(--line); background:#f9f0df; color:var(--ink); border-radius:7px 5px 8px 4px; padding:8px 11px; font-size:13px; font-family:inherit; cursor:pointer; box-shadow:2px 2px 0 rgba(91,68,45,.12); }
+    .day.active { border-color:var(--blue); background:#dcebe5; color:#285b5c; font-weight:700; transform:rotate(-1deg); }
+    .summary { font-size:12px; color:var(--muted); padding:10px 0 13px; border-bottom:1px dashed var(--line); line-height:1.6; }
+    .stop { border-bottom:1px dashed var(--line); padding:14px 0; cursor:pointer; transition:background .16s ease,transform .16s ease; }
+    .stop:hover, .stop.selected { background:#fff4dc; margin:0 -10px; padding-left:10px; padding-right:10px; transform:rotate(-.25deg); }
     .stop-head { display:flex; gap:8px; align-items:baseline; }
     .num { color:var(--blue); font-variant-numeric:tabular-nums; font-weight:700; width:22px; }
     .stop h2 { font-size:15px; margin:0; line-height:1.35; }
     .stop p { margin:5px 0 0 30px; color:var(--muted); font-size:12px; line-height:1.5; }
-    .tag { display:inline-block; margin:7px 0 0 30px; padding:2px 6px; border-radius:4px; background:#eef2f6; color:#52606d; font-size:11px; }
-    .tag.approx { background:#fff2e8; color:#9a3412; }
-    .detail { display:none; border-top:1px solid var(--line); margin-top:10px; padding-top:11px; font-size:12px; line-height:1.55; }
+    .tag { display:inline-block; margin:7px 0 0 30px; padding:2px 7px; border-radius:5px 3px 6px 4px; background:#e7eee5; color:#426149; font-size:11px; }
+    .tag.approx { background:#f7dfc9; color:#964c2d; }
+    .detail { display:none; border-top:1px dashed var(--line); margin-top:10px; padding-top:11px; font-size:12px; line-height:1.7; }
     .stop.selected .detail { display:block; }
     .detail strong { color:var(--ink); }
-    .detail a { color:var(--blue); text-decoration:none; }
+    .detail p { margin:0 0 7px; }
+    .detail ul { margin:4px 0 8px 17px; padding:0; }
+    .detail a { color:#286b70; text-decoration:none; }
     .detail a:hover { text-decoration:underline; }
     #map { height:100%; min-height:640px; }
-    .leaflet-popup-content { margin:12px 14px; min-width:220px; }
-    .popup-title { font-weight:700; font-size:15px; margin-bottom:4px; }
-    .popup-meta { color:#586675; font-size:12px; line-height:1.5; }
-    .popup-link { display:inline-block; margin-top:8px; color:#1f6feb; font-size:12px; text-decoration:none; }
-    .legend { position:absolute; right:14px; bottom:18px; z-index:500; background:rgba(255,255,255,.94); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-size:11px; line-height:1.7; box-shadow:0 1px 4px rgba(23,33,43,.12); }
-    .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:0; }
-    .source-note { margin-top:16px; color:var(--muted); font-size:11px; line-height:1.5; }
-    .source-note a { color:var(--blue); }
-    @media (max-width:780px) { .app { grid-template-columns:1fr; grid-template-rows:52vh auto; height:auto; } #map { min-height:52vh; grid-row:1; } aside { grid-row:2; border-right:0; border-top:1px solid var(--line); } .legend { bottom:auto; top:14px; } }
+    .leaflet-popup-content { margin:13px 15px; min-width:250px; max-width:320px; font-family:"Noto Serif SC","Songti SC",serif; }
+    .leaflet-popup-content-wrapper { background:#fffaf0; border:1px solid #b9a98f; border-radius:7px 4px 8px 5px; box-shadow:3px 3px 0 rgba(81,66,55,.16); }
+    .leaflet-popup-tip { background:#fffaf0; }
+    .popup-title { font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:22px; margin-bottom:4px; color:#514237; }
+    .popup-meta { color:#66594e; font-size:12px; line-height:1.65; }
+    .popup-intro { font-size:12px; line-height:1.65; margin-top:8px; }
+    .popup-highlights { margin:5px 0 7px 17px; padding:0; color:#66594e; font-size:12px; line-height:1.55; }
+    .popup-tip { border-top:1px dashed #cfc2ad; margin-top:7px; padding-top:6px; color:#805a3f; font-size:11px; line-height:1.55; }
+    .popup-links { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+    .popup-link { color:#286b70; font-size:11px; text-decoration:none; }
+    .popup-link:hover { text-decoration:underline; }
+    .legend { position:absolute; right:14px; bottom:18px; z-index:500; background:rgba(255,250,240,.94); border:1px dashed #b9a98f; border-radius:7px 4px 8px 5px; padding:9px 11px; font-size:11px; line-height:1.9; box-shadow:3px 3px 0 rgba(81,66,55,.14); }
+    .legend-grid { display:grid; grid-template-columns:repeat(2,minmax(110px,1fr)); gap:2px 10px; }
+    .legend-item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+    .legend-symbol { display:inline-grid; place-items:center; width:20px; height:20px; border:2px solid currentColor; border-radius:48% 52% 45% 55%; font-size:12px; line-height:1; font-weight:700; }
+    .source-note { margin-top:16px; color:var(--muted); font-size:11px; line-height:1.65; }
+    .source-note a { color:#286b70; }
+    .hand-marker-wrap { background:transparent; border:0; }
+    .hand-marker { display:grid; place-items:center; width:30px; height:30px; border:3px solid currentColor; border-radius:48% 52% 43% 57%; color:#514237; background:#fffaf0; box-shadow:2px 2px 0 rgba(81,66,55,.22); font-family:"Ma Shan Zheng","KaiTi",cursive; font-size:17px; transform:rotate(-5deg); }
+    .hand-marker.transport { color:#286b70; background:#d9ebe3; }
+    .hand-marker.culture { color:#765b83; background:#eee0ee; }
+    .hand-marker.beach { color:#b36a37; background:#f8dfb8; transform:rotate(4deg); }
+    .hand-marker.route { color:#6b7e4d; background:#e4edc7; border-style:dashed; }
+    .hand-marker.viewpoint { color:#ad7d25; background:#faedb7; }
+    .hand-marker.food { color:#ae5c48; background:#f2d8cb; }
+    .hand-marker.village { color:#7b6650; background:#e8dcc7; }
+    .hand-marker.shopping { color:#3f7390; background:#d8e8ef; }
+    @media (max-width:780px) { .app { grid-template-columns:1fr; grid-template-rows:52vh auto; height:auto; } #map { min-height:52vh; grid-row:1; } aside { grid-row:2; border-right:0; border-top:2px dashed var(--line); } .legend { bottom:auto; top:14px; right:10px; max-width:calc(100% - 20px); } }
   </style>
 </head>
 <body>
@@ -54,7 +78,7 @@
   </aside>
   <div id="map" aria-label="行程交互地图"></div>
 </main>
-<div class="legend"><span class="dot" style="background:#1f6feb"></span>杭州&nbsp;&nbsp;<span class="dot" style="background:#0f766e"></span>宁波&nbsp;&nbsp;<span class="dot" style="background:#c2410c"></span>枸杞岛&nbsp;&nbsp;<span class="dot" style="background:#7c3aed"></span>泗礁岛<br><span style="color:#64748b">虚线=跨城/跨海示意&nbsp;·&nbsp;橙色标签=约略坐标</span></div>
+<div class="legend" aria-label="地点类型图例"><div class="legend-grid"><span class="legend-item"><i class="legend-symbol" style="color:#286b70">↔</i>交通</span><span class="legend-item"><i class="legend-symbol" style="color:#765b83">▣</i>文化</span><span class="legend-item"><i class="legend-symbol" style="color:#b36a37">≈</i>海滩</span><span class="legend-item"><i class="legend-symbol" style="color:#6b7e4d">⌁</i>路线</span><span class="legend-item"><i class="legend-symbol" style="color:#ad7d25">✦</i>观景</span><span class="legend-item"><i class="legend-symbol" style="color:#ae5c48">☕</i>餐饮</span><span class="legend-item"><i class="legend-symbol" style="color:#7b6650">⌂</i>村落</span><span class="legend-item"><i class="legend-symbol" style="color:#3f7390">▤</i>购物</span></div><div style="color:#74675c;margin-top:3px">虚线=跨城/跨海示意 · 橙色标签=约略坐标</div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const stops = [
@@ -95,7 +119,67 @@ const stops = [
   {day:6, name:'上海南浦大桥客运站', city:'上海', kind:'返程交通节点', lat:31.2070, lon:121.4940, time:'抵达上海', note:'班次受天气影响，以嵊泗客运/游嵊泗当天信息为准。', source:'https://www.shengsi.gov.cn/', sourceLabel:'嵊泗县政府'}
 ];
 
-const colors = {杭州:'#1f6feb', 宁波:'#0f766e', 枸杞岛:'#c2410c', 泗礁岛:'#7c3aed', 岱山:'#b45309', 上海:'#475569'};
+const externalInfo = {
+  '杭州东站': {intro:'杭州东站是杭州最主要的高速铁路枢纽，站房与地铁、公交和网约车接驳体系相连。', highlights:['杭州东—上海虹桥高铁通达频繁','深夜抵达时优先确认地铁末班与住宿接驳'], tips:'车次、检票口和末班接驳以 12306 当日信息为准。'},
+  '断桥残雪': {intro:'断桥位于西湖北岸，是白堤东端的传统入口。冬季雪后桥面与湖山相映，形成“断桥残雪”意象。', highlights:['西湖十景之一','可沿白堤步行前往孤山'], tips:'景点为开放式公共空间，雪后、节假日和日出时段人流变化明显。'},
+  '白堤': {intro:'白堤连接断桥与孤山，沿线可近距离观察湖岸、荷区与北山景观，是西湖北线最适合步行的连续空间。', highlights:['断桥—孤山的湖岸步行线','适合清晨慢行与摄影'], tips:'步行道与骑行管理以现场标识为准，雨天注意湿滑。'},
+  '孤山 · 西泠印社': {intro:'孤山是西湖北岸重要的人文景观区，西泠印社以金石篆刻、书画和印学传统著称。', highlights:['中国篆刻艺术的重要传承地','可与白堤、浙博孤山馆连线游览'], tips:'院落、展厅和社址的开放范围可能分时段调整。'},
+  '浙江省博物馆（孤山馆）': {intro:'浙江省博物馆孤山馆区位于西湖孤山，承担浙江历史、艺术与考古类收藏展示功能。', highlights:['浙江地域文明与艺术史展陈','与西泠印社、白堤距离较近'], tips:'展览和闭馆日以官网预约页面为准，馆内拍摄规则也需现场确认。'},
+  '岳王庙': {intro:'岳王庙是纪念南宋抗金名将岳飞的历史建筑群，包含岳飞墓、忠烈祠等空间。', highlights:['南宋历史主题纪念性景区','可与曲院风荷顺路安排'], tips:'属于收费景区，祭祀空间请保持安静并遵守参观礼仪。'},
+  '曲院风荷': {intro:'曲院风荷位于西湖北岸，以荷花、水面、曲桥和园林空间构成夏季观荷的代表性景观。', highlights:['西湖十景之一','与岳王庙、苏堤北端相邻'], tips:'荷花季与非花期观感不同，雨天木栈道较滑。'},
+  '净慈寺': {intro:'净慈寺坐落于南屏山麓，是杭州著名佛教寺院之一，钟声与西湖南岸山水共同构成“南屏晚钟”意象。', highlights:['西湖十景“南屏晚钟”关联寺院','可步行衔接雷峰塔与长桥公园'], tips:'寺院有明确开放时段，香客与游客请遵守寺院规定。'},
+  '雷峰塔': {intro:'雷峰塔景区位于西湖南岸，现塔为重建建筑，登塔可俯瞰西湖、净慈寺与南山一带。', highlights:['西湖全景与夕照视角','与净慈寺、长桥公园相邻'], tips:'需购票入内；登塔、闭园和夜间灯光以景区公告为准。'},
+  '长桥公园': {intro:'长桥公园位于西湖南岸，是观察雷峰塔、湖面和夕照方向的开放式滨水空间。', highlights:['适合安排日落观景','与净慈寺、雷峰塔步行衔接'], tips:'日落时间随日期变化，湖岸风力和能见度会影响观景。'},
+  '柳浪闻莺': {intro:'柳浪闻莺是西湖东南岸的滨水公园，以柳林、草地和开阔湖面为主要景观。', highlights:['西湖十景之一','可从南山路步行前往湖滨商圈'], tips:'夜间照明和园区管理以现场情况为准。'},
+  '湖滨银泰 in77': {intro:'湖滨银泰 in77 是杭州湖滨商圈的综合商业空间，集合餐饮、零售与休闲消费。', highlights:['适合晚餐和城市夜间活动','靠近湖滨步行街与地铁龙翔桥站'], tips:'商户营业时间、预约和停车政策以商场及商户公告为准。'},
+  '灵隐寺 · 飞来峰': {intro:'灵隐寺与飞来峰造像群位于杭州西山，兼具佛教寺院、石窟造像和山林游览价值。', highlights:['东南沿海重要佛教寺院之一','飞来峰石刻与灵隐寺通常涉及不同票务/预约规则'], tips:'节假日客流大，预约、门票、接驳车和进香规定以官网为准。'},
+  '宁波站': {intro:'宁波站是甬杭、沪甬等铁路线路的重要客运站，位于宁波中心城区南侧。', highlights:['高铁与城市公交、地铁换乘节点','前往老外滩可结合地铁或步行接驳'], tips:'车次与检票信息以 12306 当日页面为准。'},
+  '宁波美术馆': {intro:'宁波美术馆位于甬江与三江口附近，展览聚焦现当代艺术及地方文化相关项目。', highlights:['老外滩片区公共文化场馆','建筑与滨水步行线适合组合游览'], tips:'临展、预约、闭馆日和摄影限制以馆方公告为准。'},
+  '中马路历史街区': {intro:'中马路历史街区位于宁波老外滩东侧，保留近代城市街巷与商贸历史的空间线索。', highlights:['适合步行观察街巷尺度与近代建筑','可与天主教堂、老外滩串联'], tips:'街区为城市公共空间，沿街商户营业时间各不相同。'},
+  '江北天主教堂': {intro:'江北天主教堂是宁波近代城市历史建筑的一部分，外观与周边街区共同体现开埠后的城市文化层积。', highlights:['近代宗教建筑与城市史观察点','靠近老外滩和中马路'], tips:'宗教场所可能有礼拜安排，参观请服从现场管理。'},
+  '三江口': {intro:'三江口是姚江、奉化江汇入甬江的核心滨水区域，也是宁波城市景观与夜景的重要节点。', highlights:['城市水系与天际线视角','可选择滨江步行或夜游船'], tips:'夜游船班、码头和天气影响以宁波文旅及运营方公告为准。'},
+  '宁波老外滩': {intro:'宁波老外滩沿甬江展开，保留开埠时期的街区肌理，并发展为餐饮、酒吧和夜间步行区域。', highlights:['近代港口城市历史与夜生活结合','适合与美术馆、三江口连线'], tips:'夜间人流和商户活动较集中，建议公共交通出行。'},
+  '燕窝山码头': {intro:'燕窝山码头是前往嵊泗列岛方向的车船联运中转节点，实际航程受海况与船期影响。', highlights:['车船联运路径中的海上换乘点','可从宁波公运查询联运安排'], tips:'请预留安检、换乘和天气延误时间，最终以承运方通知为准。'},
+  '干斜码头': {intro:'干斜码头位于枸杞岛，是岛上客运抵达与离岛接驳的重要节点。', highlights:['枸杞岛主要到达码头之一','适合衔接民宿接送与岛内交通'], tips:'码头班次、靠泊位置和岛内接驳可能随海况变化。'},
+  '大王沙滩': {intro:'大王沙滩是枸杞岛常见的滨海休闲点，沙滩、礁石和岛屿海景构成主要体验。', highlights:['适合短时看海、散步与拍摄','可与岛内村落和公路景观组合'], tips:'地图点为附近约略坐标；潮汐、风浪和沙滩开放情况以现场为准。'},
+  '龙泉沙滩': {intro:'龙泉沙滩位于枸杞岛龙泉片区，具有典型的岛屿海岸休闲属性。', highlights:['可与龙泉村、北岸公路安排连续行程','适合观察海岸聚落关系'], tips:'地图点为附近约略坐标，建议向民宿确认实际入口与停车位置。'},
+  '山海奇观': {intro:'山海奇观是枸杞岛面向海域的高处观景点，适合观察岛岸线、渔村与日落方向。', highlights:['枸杞岛代表性观景位置','日落时段光线与风景层次较好'], tips:'地图点为附近约略坐标；山路照明有限，返程需预留时间。'},
+  '东昇村彩虹公路': {intro:'东昇村彩虹公路是枸杞岛村落道路与海岸风景结合的骑行、步行段。', highlights:['村落、坡道与海景连续出现','适合慢速骑行和观察岛屿聚落'], tips:'地图点为附近约略坐标；道路有坡度和会车，骑行请控制速度。'},
+  '大岙沙滩': {intro:'大岙沙滩位于枸杞岛海岸聚落附近，是行程中的短暂停留与看海点。', highlights:['可作为北岸路线中的海边休息点','适合结合潮汐观察海岸线'], tips:'地图点为附近约略坐标，实际可进入区域受潮汐和现场管理影响。'},
+  '北岸公路': {intro:'北岸公路是枸杞岛沿海道路景观段，重点在于海岸线、坡度和村落之间的连续移动体验。', highlights:['适合骑行或包车分段游览','沿线视野受天气和风向影响明显'], tips:'地图点为路线中心附近约略坐标；不代表单一入口或完整骑行轨迹。'},
+  '龙泉村': {intro:'龙泉村是枸杞岛的沿海村落，旅行价值主要来自渔业聚落、民居和海岸生活方式。', highlights:['观察海岛日常生活与聚落形态','可与龙泉沙滩、北岸公路结合'], tips:'地图点为村落附近约略坐标，请尊重居民生活并避免进入私人区域。'},
+  '基湖沙滩': {intro:'基湖沙滩位于泗礁岛，是嵊泗列岛较知名的海滨休闲景区，拥有开阔沙滩和海上活动条件。', highlights:['泗礁岛代表性沙滩景区','适合安排半日海滨活动'], tips:'地图点为附近约略坐标；门票、开放、下水和水上项目以景区当日公告为准。'},
+  '左岸公路': {intro:'左岸公路是泗礁岛沿海道路景观段，适合把骑行、海岸观察和村落移动结合起来。', highlights:['线性海岸视野','适合在 16:00—18:00 的光线条件下移动'], tips:'地图点为路线中心附近约略坐标；风况、道路施工和交通管制可能改变路线。'},
+  '六井潭 + 和尚套': {intro:'六井潭与和尚套是泗礁岛北部的海岸景区组合，以临海栈道、礁岸地貌和开阔海景为主要看点。', highlights:['栈道连接的海岸观景系统','适合观察海蚀地貌与海上日出方向'], tips:'地图点为景区附近约略坐标；联票、开放时间、风浪和栈道通行以景区公告为准。'},
+  '东海渔村（田岙村）': {intro:'东海渔村位于泗礁岛田岙村一带，集中体现渔村民居、渔业文化与海岛旅游更新。', highlights:['海岛聚落与渔业生活观察点','可与大悲山、沿海公路组合'], tips:'地图点为村落附近约略坐标，请尊重居民生活和生产空间。'},
+  '大悲山观景台': {intro:'大悲山观景台位于泗礁岛高处，可俯瞰海湾、村落和东海方向，是观察日出与岛屿地形的高点。', highlights:['高处俯瞰泗礁岛海岸','适合清晨或能见度较高时段'], tips:'地图点为附近约略坐标；清晨风大且道路照明有限，请结伴并注意安全。'},
+  '李柱山码头': {intro:'李柱山码头是泗礁岛前往上海方向的重要客运节点，返程时间对全日行程约束较强。', highlights:['嵊泗—上海客运衔接点','需提前核对检票、安检与行李要求'], tips:'船班受风浪影响显著，返程当天以嵊泗客运及承运方通知为准。'},
+  '上海南浦大桥客运站': {intro:'南浦大桥客运站是上海市区与嵊泗列岛水路客运的重要集散点，承担抵离岛后的城市接驳。', highlights:['连接上海市区与嵊泗客运线路','可继续换乘地铁、公交或网约车'], tips:'抵达时间可能受海况影响，夜间返程请预留城市交通缓冲。'}
+};
+const colors = {杭州:'#286b70', 宁波:'#487c5b', 枸杞岛:'#b36a37', 泗礁岛:'#765b83', 岱山:'#ad7d25', 上海:'#3f7390'};
+const markerStyles = {
+  transport:{className:'transport', symbol:'↔'}, culture:{className:'culture', symbol:'▣'}, beach:{className:'beach', symbol:'≈'},
+  route:{className:'route', symbol:'⌁'}, viewpoint:{className:'viewpoint', symbol:'✦'}, food:{className:'food', symbol:'☕'},
+  village:{className:'village', symbol:'⌂'}, shopping:{className:'shopping', symbol:'▤'}
+};
+function escapeHtml(value){ return String(value ?? '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function styleForStop(s){
+  const kind=s.kind;
+  if(kind.includes('交通')) return markerStyles.transport;
+  if(kind.includes('海滩')) return markerStyles.beach;
+  if(kind.includes('路线') || kind.includes('公路')) return markerStyles.route;
+  if(kind.includes('观景') || kind.includes('日落')) return markerStyles.viewpoint;
+  if(kind.includes('餐饮') || kind.includes('夜游')) return kind.includes('餐饮') ? markerStyles.food : markerStyles.viewpoint;
+  if(kind.includes('村') || kind.includes('渔村')) return markerStyles.village;
+  if(kind.includes('购物')) return markerStyles.shopping;
+  return markerStyles.culture;
+}
+function infoFor(s){ return externalInfo[s.name] || {intro:s.note, highlights:[], tips:'请以景点现场公告和当日天气、交通信息为准。'}; }
+function linksFor(s){
+  const links=[{url:s.source,label:s.sourceLabel}];
+  if(!links.some(x=>x.url==='https://www.shengsi.gov.cn/') && ['枸杞岛','泗礁岛','岱山'].includes(s.city)) links.push({url:'https://www.shengsi.gov.cn/',label:'嵊泗县政府'});
+  return links;
+}
 const map = L.map('map', { preferCanvas:true }).setView([30.55,121.35], 8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 const markerLayer = L.layerGroup().addTo(map); const lineLayer = L.layerGroup().addTo(map); const markerRefs = new Map();
@@ -107,17 +191,21 @@ const dayRoute = {
   5:[[30.744,122.789],[30.735,122.780],[30.748,122.774],[30.739,122.792],[30.7355,122.479],[30.720,122.470]],
   6:[[30.667,122.531],[30.690,122.500],[30.742,122.480],[30.733,122.451],[31.207,121.494]]
 };
-function popup(s){ return `<div class="popup-title">${s.name}</div><div class="popup-meta">D${s.day} · ${s.city} · ${s.kind}<br>${s.time}<br>${s.note}</div><a class="popup-link" href="${s.source}" target="_blank" rel="noopener">${s.sourceLabel} ↗</a>`; }
+function popup(s){
+  const info=infoFor(s); const links=linksFor(s); const style=styleForStop(s);
+  return `<div class="popup-title"><span class="hand-marker ${style.className}" style="display:inline-grid;width:25px;height:25px;font-size:14px;vertical-align:middle;margin-right:5px">${style.symbol}</span>${escapeHtml(s.name)}</div><div class="popup-meta">D${s.day} · ${escapeHtml(s.city)} · ${escapeHtml(s.kind)}<br>${escapeHtml(s.time)}<br>${escapeHtml(s.note)}${s.approx?'（约略坐标）':''}</div><div class="popup-intro">${escapeHtml(info.intro)}</div>${info.highlights.length?`<ul class="popup-highlights">${info.highlights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}<div class="popup-tip"><strong>实用提示：</strong>${escapeHtml(info.tips)}</div><div class="popup-links">${links.map(x=>`<a class="popup-link" href="${x.url}" target="_blank" rel="noopener">${escapeHtml(x.label)} ↗</a>`).join('')}</div>`;
+}
 function draw(day){
   markerLayer.clearLayers(); lineLayer.clearLayers(); markerRefs.clear();
   const visible = day === 0 ? stops : stops.filter(s=>s.day===day);
-  visible.forEach((s,i)=>{ const color=colors[s.city]||'#334155'; const m=L.circleMarker([s.lat,s.lon],{radius:7,weight:2,color:'#fff',fillColor:color,fillOpacity:.95}); m.bindPopup(popup(s)); m.on('click',()=>selectStop(s)); m.addTo(markerLayer); markerRefs.set(s.name,m); });
+  visible.forEach((s,i)=>{ const style=styleForStop(s); const icon=L.divIcon({className:'hand-marker-wrap',html:`<span class="hand-marker ${style.className}">${style.symbol}</span>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-14]}); const m=L.marker([s.lat,s.lon],{icon}); m.bindPopup(popup(s)); m.on('click',()=>selectStop(s)); m.addTo(markerLayer); markerRefs.set(s.name,m); });
   const routes = day === 0 ? Object.values(dayRoute) : [dayRoute[day]];
   routes.filter(Boolean).forEach((pts,idx)=>L.polyline(pts,{color:day===0?'#64748b':(colors[visible[0]?.city]||'#1f6feb'),weight:3,opacity:.72,dashArray:day===0?'6 7':null}).addTo(lineLayer));
   if(visible.length){ const bounds=L.latLngBounds(visible.map(s=>[s.lat,s.lon])); map.fitBounds(bounds.pad(.18),{maxZoom:day===0?8:13}); }
   renderList(day, visible);
 }
-function renderList(day, visible){ const wrap=document.getElementById('stops'); wrap.innerHTML=''; visible.forEach((s,i)=>{ const el=document.createElement('article'); el.className='stop'; el.dataset.name=s.name; el.innerHTML=`<div class="stop-head"><span class="num">${String(i+1).padStart(2,'0')}</span><h2>${s.name}</h2></div><p>${s.time} · ${s.kind}</p><span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span><div class="detail"><strong>行程说明：</strong>${s.note}<br><strong>出处：</strong><a href="${s.source}" target="_blank" rel="noopener">${s.sourceLabel} ↗</a></div>`; el.onclick=()=>selectStop(s); wrap.appendChild(el); }); document.getElementById('summary').textContent=`${day===0?'全程':`D${day}`} · ${visible.length} 个地点。路线线段为行程示意，跨城/跨海段不代表实际道路或航线。`; }
+function renderList(day, visible){ const wrap=document.getElementById('stops'); wrap.innerHTML=''; visible.forEach((s,i)=>{ const info=infoFor(s); const style=styleForStop(s); const el=document.createElement('article'); el.className='stop'; el.dataset.name=s.name; el.innerHTML=`<div class="stop-head"><span class="num">${String(i+1).padStart(2,'0')}</span><span class="hand-marker ${style.className}" style="display:inline-grid;width:22px;height:22px;font-size:12px">${style.symbol}</span><h2>${escapeHtml(s.name)}</h2></div><p>${escapeHtml(s.time)} · ${escapeHtml(s.kind)}</p><span class="tag ${s.approx?'approx':''}">${s.approx?'约略坐标':'已核验/可检索'}</span><div class="detail"><p><strong>行程说明：</strong>${escapeHtml(s.note)}</p><p><strong>外部介绍：</strong>${escapeHtml(info.intro)}</p>${info.highlights.length?`<p><strong>看点：</strong></p><ul>${info.highlights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}<p><strong>实用提示：</strong>${escapeHtml(info.tips)}</p><p><strong>出处：</strong>${linksFor(s).map(x=>`<a href="${x.url}" target="_blank" rel="noopener">${escapeHtml(x.label)} ↗</a>`).join(' · ')}</p></div>`; el.onclick=()=>selectStop(s); wrap.appendChild(el); }); document.getElementById('summary').textContent=`${day===0?'全程':`D${day}`} · ${visible.length} 个地点。路线线段为行程示意，跨城/跨海段不代表实际道路或航线。跨城/跨海虚线仅表达行程顺序，不代表实际道路或航线。`;
+}
 function selectStop(s){ document.querySelectorAll('.stop').forEach(x=>x.classList.toggle('selected',x.dataset.name===s.name)); const m=markerRefs.get(s.name); if(m){ map.setView([s.lat,s.lon],Math.max(map.getZoom(),13),{animate:true}); m.openPopup(); } }
 const days=document.getElementById('days'); [{n:0,t:'全程'},...Array.from({length:6},(_,i)=>({n:i+1,t:`D${i+1}`}))].forEach(d=>{ const b=document.createElement('button'); b.className='day'+(d.n===0?' active':''); b.textContent=d.t; b.type='button'; b.onclick=()=>{document.querySelectorAll('.day').forEach(x=>x.classList.remove('active')); b.classList.add('active'); draw(d.n);}; days.appendChild(b); });
 draw(0);
